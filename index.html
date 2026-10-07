@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="ur">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#111">
+<title>SHAHEEN 100 ARMY</title>
+<style>
+* { box-sizing: border-box; }
+body { background:#0a0a0a; color:#e0e0e0; font-family:Arial,sans-serif; margin:0; padding:8px; font-size:15px; }
+.header { background:linear-gradient(135deg,#1a1a2e,#16213e); padding:12px; border-radius:12px; text-align:center; border:1px solid #2a2a4a; margin-bottom:8px; }
+.header h1 { margin:0; font-size:20px; color:#ffd700; }
+.header p { margin:4px 0 0; font-size:12px; color:#888; }
+.key-box { background:#1a1a1a; padding:10px; border-radius:10px; margin-bottom:8px; border:1px solid #2a2a2a; display:flex; gap:6px; }
+.key-box input { flex:1; padding:10px; border-radius:8px; border:1px solid #333; background:#0f0f0f; color:#fff; font-size:14px; min-width:0; }
+.key-box button { padding:10px 16px; border-radius:8px; border:none; background:#f80; color:#000; font-weight:bold; font-size:14px; }
+.quick-actions { display:flex; gap:6px; margin-bottom:8px; overflow-x:auto; padding-bottom:4px; }
+.quick-actions button { padding:8px 12px; border-radius:8px; border:1px solid #2a2a4a; background:#1a1a2e; color:#ffd700; font-size:12px; white-space:nowrap; }
+.chat { background:#1a1a1a; padding:12px; border-radius:10px; margin-bottom:8px; height:calc(100vh - 260px); min-height:300px; overflow-y:auto; border:1px solid #2a2a2a; }
+.msg { margin:8px 0; padding:8px 12px; border-radius:10px; line-height:1.4; word-wrap:break-word; font-size:14px; }
+.msg-user { background:#0a3d0a; color:#b8ffb8; margin-left:20%; text-align:right; border:1px solid #1a5d1a; }
+.msg-ai { background:#2a2a1a; color:#ffd; margin-right:10%; border:1px solid #4a4a2a; }
+.msg-sys { background:#1a1a2e; color:#88aaff; text-align:center; font-size:12px; border:1px solid #2a2a4a; }
+.msg-err { background:#3d0a0a; color:#ff8888; border:1px solid #5d1a1a; }
+.msg small { color:#888; font-size:11px; display:block; margin-bottom:2px; }
+.input-box { display:flex; gap:6px; position:sticky; bottom:0; background:#0a0a0a; padding-top:6px; }
+.input-box input { flex:1; padding:12px; border-radius:10px; border:1px solid #333; background:#1a1a1a; color:#fff; font-size:15px; min-width:0; }
+.input-box button { padding:12px 18px; border-radius:10px; border:none; background:#0a8; color:#fff; font-weight:bold; font-size:15px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+<h1>🦅 SHAHEEN 100 ARMY</h1>
+<p>Ustad Jee • WHOS System • 14 Brains Online</p>
+</div>
+
+<div class="key-box">
+<input id="apikey" type="password" placeholder="Groq API Key yahan paste karein...">
+<button onclick="saveKey()">SET</button>
+</div>
+
+<div class="quick-actions">
+<button onclick="quick('Inventory mission: mera 3 mahine se inventory waiting mein hai. Isko activate karne ka strong plan banao.')">📦 Inventory</button>
+<button onclick="quick('IT services mission: mere paas IT services ready hain lekin clients nahi hain. Clients laane ka plan banao.')">💻 IT</button>
+<button onclick="quick('Construction contracts mission: purane contracts revive karne hain aur naye lene hain. Plan banao.')">🏗️ Construction</button>
+<button onclick="quick('Mujhe motivate karo. Main 4-5 mahine se kaam kar raha hoon aur thaka hua hoon.')">🔥 Booster</button>
+<button onclick="clearChat()">🗑️ Clear</button>
+</div>
+
+<div class="chat" id="chat">
+<div class="msg msg-sys">🦅 SHAHEEN ARMY online. Pehle apni Groq API Key set karein.</div>
+</div>
+
+<div class="input-box">
+<input id="msg" placeholder="Ustad Jee, hukum likhein..." onkeypress="if(event.key==='Enter')send()">
+<button onclick="send()">🚀</button>
+</div>
+
+<script>
+const BRAINS = {
+  programmer: "You are Senior Programmer. Write clean code, debug, solve technical problems. Short Roman Urdu + English mix.",
+  marketing: "You are Marketing Specialist. Ads, copy, SEO, income plans. Short Roman Urdu + English mix.",
+  designer: "You are UI/UX Designer. Layouts, colors, fonts. Short Roman Urdu + English mix.",
+  researcher: "You are Researcher. Current facts, free tools 2026. Short Roman Urdu + English mix.",
+  psychologist: "You are Human Psychologist. Empathy, practical advice. Short Roman Urdu + English mix.",
+  booster: "You are Booster. Motivate, energize. Short bursts. Roman Urdu + English mix.",
+  planner: "You are Strategic Planner. Step-by-step plans, free tools only. Short Roman Urdu + English mix.",
+  economist: "You are Economist. Show income path + time to money. Reject if no income. Short Roman Urdu.",
+  validator: "You are Validator. Strict. Yes/No with reason. Short.",
+  smart_brain: "You are Smart Brain. Clear, logical, concise. Short Roman Urdu + English mix."
+};
+
+function routeMessage(msg) {
+  const m = msg.toLowerCase();
+  if (/code|bug|program|python|api|function|error/.test(m)) return "programmer";
+  if (/design|ui|ux|layout|color|font|logo/.test(m)) return "designer";
+  if (/marketing|ad|seo|promote|income|paisa|kamai|sale|sell|client/.test(m)) return "marketing";
+  if (/research|find|verify|source|data|truth/.test(m)) return "researcher";
+  if (/motivat|boost|tired|thak|energy|focus|hosla/.test(m)) return "booster";
+  if (/feel|emotion|sad|happy|tension|pareshan|stress/.test(m)) return "psychologist";
+  if (/plan|mission|strategy|roadmap|target|goal/.test(m)) return "planner";
+  if (/income|expense|paisa|budget|profit|cost|kamai/.test(m)) return "economist";
+  return "smart_brain";
+}
+
+let key = localStorage.getItem('groq_key') || '';
+if (key) { document.getElementById('apikey').value = '****SAVED****'; addMsg('sys','✅ Key saved. Hukum likhein.'); }
+
+function saveKey() {
+  const k = document.getElementById('apikey').value.trim();
+  if (k && k !== '****SAVED****' && k.startsWith('gsk_')) {
+    localStorage.setItem('groq_key', k); key = k;
+    addMsg('sys','✅ API Key save ho gayi!');
+  } else if (k === '****SAVED****') { addMsg('sys','Key pehle se saved hai.'); }
+  else { addMsg('err','❌ Galat key. "gsk_" se shuru honi chahiye.'); }
+}
+
+function addMsg(type, text) {
+  const chat = document.getElementById('chat');
+  const div = document.createElement('div');
+  div.className = 'msg msg-' + type;
+  div.innerHTML = text;
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function clearChat() { document.getElementById('chat').innerHTML = '<div class="msg msg-sys">Cleared. Hukum likhein.</div>'; }
+function quick(text) { document.getElementById('msg').value = text; send(); }
+
+async function send() {
+  const input = document.getElementById('msg');
+  const m = input.value.trim();
+  if (!m) return;
+  if (!key) { addMsg('err','❌ Pehle Groq API Key set karein.'); return; }
+  addMsg('user', m);
+  input.value = '';
+  const agent = routeMessage(m);
+  addMsg('sys','🧠 ' + agent.toUpperCase() + ' soch raha hai...');
+  try {
+    const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method:'POST',
+      headers:{'Authorization':'Bearer '+key,'Content-Type':'application/json'},
+      body: JSON.stringify({
+        model: 'openai/gpt-oss-20b',
+        messages: [
+          { role:'system', content: BRAINS[agent] || BRAINS.smart_brain },
+          { role:'user', content: m }
+        ],
+        max_tokens: 1000,
+        temperature: 0.7
+      })
+    });
+    const d = await r.json();
+    if (d.choices && d.choices[0]) {
+      const ans = d.choices[0].message.content;
+      addMsg('ai','<small>🦅 '+agent.toUpperCase()+'</small>'+escapeHtml(ans).replace(/\n/g,'<br>'));
+    } else if (d.error) { addMsg('err','❌ '+(d.error.message||'Error')); }
+    else { addMsg('err','❌ Jawab nahi aya.'); }
+  } catch(e) { addMsg('err','❌ '+e.message); }
+}
+
+function escapeHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+</script>
+
+</body>
+</html>
