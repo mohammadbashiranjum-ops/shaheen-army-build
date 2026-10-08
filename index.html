@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="ur">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#111">
+<title>SHAHEEN 100 ARMY</title>
+<style>
+* { box-sizing: border-box; }
+body { background:#0a0a0a; color:#e0e0e0; font-family:Arial,sans-serif; margin:0; padding:8px; font-size:15px; }
+.header { background:linear-gradient(135deg,#1a1a2e,#16213e); padding:12px; border-radius:12px; text-align:center; border:1px solid #2a2a4a; margin-bottom:8px; }
+.header h1 { margin:0; font-size:20px; color:#ffd700; }
+.header p { margin:4px 0 0; font-size:12px; color:#888; }
+.status { font-size:11px; padding:4px 8px; border-radius:6px; display:inline-block; margin-top:4px; }
+.status-ok { background:#0a3d0a; color:#b8ffb8; }
+.status-err { background:#3d0a0a; color:#ff8888; }
+.status-warn { background:#3d3d0a; color:#ffff88; }
+.box { background:#1a1a1a; padding:10px; border-radius:10px; margin-bottom:8px; border:1px solid #2a2a2a; display:flex; gap:6px; flex-wrap:wrap; }
+.box input { flex:1; padding:10px; border-radius:8px; border:1px solid #333; background:#0f0f0f; color:#fff; font-size:14px; min-width:120px; }
+.box button { padding:10px 16px; border-radius:8px; border:none; background:#f80; color:#000; font-weight:bold; font-size:14px; }
+.box button.green { background:#0a8; color:#fff; }
+.box button.red { background:#c33; color:#fff; }
+.quick-actions { display:flex; gap:6px; margin-bottom:8px; overflow-x:auto; padding-bottom:4px; }
+.quick-actions button { padding:8px 12px; border-radius:8px; border:1px solid #2a2a4a; background:#1a1a2e; color:#ffd700; font-size:12px; white-space:nowrap; }
+.chat { background:#1a1a1a; padding:12px; border-radius:10px; margin-bottom:8px; height:calc(100vh - 340px); min-height:240px; overflow-y:auto; border:1px solid #2a2a2a; }
+.msg { margin:8px 0; padding:8px 12px; border-radius:10px; line-height:1.4; word-wrap:break-word; font-size:14px; }
+.msg-user { background:#0a3d0a; color:#b8ffb8; margin-left:20%; text-align:right; border:1px solid #1a5d1a; }
+.msg-ai { background:#2a2a1a; color:#ffd; margin-right:10%; border:1px solid #4a4a2a; }
+.msg-sys { background:#1a1a2e; color:#88aaff; text-align:center; font-size:12px; border:1px solid #2a2a4a; }
+.msg-err { background:#3d0a0a; color:#ff8888; border:1px solid #5d1a1a; }
+.msg pre { background:#0a0a0a; padding:8px; border-radius:6px; overflow-x:auto; font-size:12px; margin:4px 0; }
+.msg small { color:#888; font-size:11px; display:block; margin-bottom:2px; }
+.input-box { display:flex; gap:6px; position:sticky; bottom:0; background:#0a0a0a; padding-top:6px; }
+.input-box input { flex:1; padding:12px; border-radius:10px; border:1px solid #333; background:#1a1a1a; color:#fff; font-size:15px; min-width:0; }
+.input-box button { padding:12px 18px; border-radius:10px; border:none; background:#0a8; color:#fff; font-weight:bold; font-size:15px; }
+.hidden { display:none; }
+</style>
+</head>
+<body>
+
+<div class="header">
+<h1>🦅 SHAHEEN 100 ARMY</h1>
+<p>Ustad Jee • WHOS Connected</p>
+<span class="status status-err" id="whosStatus">⏳ WHOS check...</span>
+</div>
+
+<div class="box" id="whosLoginBox">
+<input id="whosEmail" type="email" placeholder="WHOS Email" value="mohammadbashiranjum@gmail.com">
+<input id="whosPass" type="password" placeholder="WHOS Password">
+<button onclick="whosLogin()" class="green">WHOS Login</button>
+</div>
+
+<div class="box hidden" id="whosInfoBox">
+<span style="color:#b8ffb8; font-size:13px;">✅ WHOS: <span id="whosUser">-</span></span>
+<button onclick="whosLogout()" class="red">Logout</button>
+</div>
+
+<div class="box">
+<input id="apikey" type="password" placeholder="Groq API Key...">
+<button onclick="saveKey()">SET</button>
+</div>
+
+<div class="quick-actions">
+<button onclick="quick('Mere saare WHOS missions check karo')">📊 Missions</button>
+<button onclick="quick('Inventory ka data dikhao')">📦 Inventory</button>
+<button onclick="quick('Projects dikhao')">📁 Projects</button>
+<button onclick="quick('Tasks dikhao')">✅ Tasks</button>
+<button onclick="quick('Motivate karo')">🔥 Booster</button>
+<button onclick="clearChat()">🗑️</button>
+</div>
+
+<div class="chat" id="chat">
+<div class="msg msg-sys">🦅 SHAHEEN ARMY online. Pehle WHOS login karein, phir Groq key set karein.</div>
+</div>
+
+<div class="input-box">
+<input id="msg" placeholder="Ustad Jee, hukum likhein..." onkeypress="if(event.key==='Enter')send()">
+<button onclick="send()">🚀</button>
+</div>
+
+<script>
+const WHOS_URL = "https://whos-backend-production.up.railway.app";
+const WHOS_API = "/api/v1";
+
+let whosToken = localStorage.getItem('whos_token') || "";
+let whosUserEmail = localStorage.getItem('whos_user') || "";
+let key = localStorage.getItem('groq_key') || "";
+
+async function whosLogin() {
+  const email = document.getElementById('whosEmail').value.trim();
+  const pass = document.getElementById('whosPass').value;
+  if (!email || !pass) { addMsg('err','❌ Email aur password daalein.'); return; }
+  
+  addMsg('sys','🔐 WHOS login...');
+  try {
+    const r = await fetch(WHOS_URL + WHOS_API + '/auth/login', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ identifier: email, password: pass })
+    });
+    const d = await r.json();
+    if (d.access_token || d.token) {
+      whosToken = d.access_token || d.token;
+      whosUserEmail = email;
+      localStorage.setItem('whos_token', whosToken);
+      localStorage.setItem('whos_user', whosUserEmail);
+      showLoggedIn();
+      addMsg('ai','✅ WHOS login successful! Ab missions, inventory, projects sab accessible hain.');
+    } else {
+      addMsg('err','❌ Login failed: ' + JSON.stringify(d));
+    }
+  } catch(e) {
+    addMsg('err','❌ Login error: ' + e.message);
+  }
+}
+
+function showLoggedIn() {
+  document.getElementById('whosLoginBox').classList.add('hidden');
+  document.getElementById('whosInfoBox').classList.remove('hidden');
+  document.getElementById('whosUser').textContent = whosUserEmail;
+  const st = document.getElementById('whosStatus');
+  st.className = 'status status-ok';
+  st.textContent = '✅ WHOS Logged In';
+}
+
+function whosLogout() {
+  whosToken = "";
+  whosUserEmail = "";
+  localStorage.removeItem('whos_token');
+  localStorage.removeItem('whos_user');
+  document.getElementById('whosInfoBox').classList.add('hidden');
+  document.getElementById('whosLoginBox').classList.remove('hidden');
+  document.getElementById('whosStatus').textContent = '🔓 Logged out';
+  addMsg('sys','WHOS logout ho gaya.');
+}
+
+async function whosCall(path, method = "GET", body = null) {
+  if (!whosToken) return { ok:false, error:"WHOS login required" };
+  const opts = {
+    method,
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer " + whosToken
+    }
+  };
+  if (body) opts.body = JSON.stringify(body);
+  try {
+    const r = await fetch(WHOS_URL + WHOS_API + path, opts);
+    const data = await r.json();
+    return { ok:r.ok, status:r.status, data };
+  } catch(e) { return { ok:false, error:e.message }; }
+}
+
+if (whosToken) showLoggedIn();
+if (key) document.getElementById('apikey').value = '****SAVED****';
+
+(async () => {
+  try {
+    const r = await fetch(WHOS_URL + WHOS_API + '/health');
+    if (r.ok) {
+      const st = document.getElementById('whosStatus');
+      if (!whosToken) {
+        st.className = 'status status-warn';
+        st.textContent = '🔐 WHOS online - Login karein';
+      }
+    }
+  } catch(e) {
+    document.getElementById('whosStatus').textContent = '⚠️ WHOS offline';
+  }
+})();
+
+function saveKey() {
+  const k = document.getElementById('apikey').value.trim();
+  if (k && k !== '****SAVED****' && k.startsWith('gsk_')) {
+    localStorage.setItem('groq_key', k); key = k;
+    addMsg('sys','✅ Groq key saved!');
+  } else if (k === '****SAVED****') { addMsg('sys','Key already saved.'); }
+  else { addMsg('err','❌ "gsk_" se shuru honi chahiye.'); }
+}
+
+function addMsg(type, text) {
+  const chat = document.getElementById('chat');
+  const div = document.createElement('div');
+  div.className = 'msg msg-' + type;
+  div.innerHTML = text;
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+}
+function clearChat() { document.getElementById('chat').innerHTML = '<div class="msg msg-sys">Cleared.</div>'; }
+function quick(text) { document.getElementById('msg').value = text; send(); }
+function escapeHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+const BRAINS = {
+  programmer: "Senior Programmer. Clean code, debug. Short Roman Urdu+English.",
+  marketing: "Marketing Specialist. Ads, SEO, income. Short Roman Urdu+English.",
+  designer: "UI/UX Designer. Short Roman Urdu+English.",
+  researcher: "Researcher. Current facts 2026. Short Roman Urdu+English.",
+  psychologist: "Psychologist. Empathy, advice. Short Roman Urdu+English.",
+  booster: "Booster. Motivate briefly. Roman Urdu+English.",
+  planner: "Strategic Planner. Step-by-step, free tools. Roman Urdu+English.",
+  economist: "Economist. Show income path. Reject if no income. Short.",
+  smart_brain: "Smart Brain. Clear, concise. Roman Urdu+English."
+};
+
+function routeMessage(msg) {
+  const m = msg.toLowerCase();
+  if (/code|bug|program|python|api|error/.test(m)) return "programmer";
+  if (/design|ui|ux|layout|color/.test(m)) return "designer";
+  if (/marketing|ad|seo|income|paisa|kamai|sale|client/.test(m)) return "marketing";
+  if (/research|find|verify|truth/.test(m)) return "researcher";
+  if (/motivat|boost|tired|thak|energy/.test(m)) return "booster";
+  if (/feel|emotion|sad|tension|stress/.test(m)) return "psychologist";
+  if (/plan|mission|strategy|roadmap/.test(m)) return "planner";
+  if (/income|expense|budget|profit|cost|kharach/.test(m)) return "economist";
+  return "smart_brain";
+}
+
+async function send() {
+  const input = document.getElementById('msg');
+  const m = input.value.trim();
+  if (!m) return;
+  addMsg('user', m);
+  input.value = '';
+
+  const lower = m.toLowerCase();
+
+  if (/mission|inventory|project|task|whos|listing|expense|client/.test(lower)) {
+    if (!whosToken) {
+      addMsg('err','❌ Pehle WHOS mein login karein (upar).');
+      return;
+    }
+    addMsg('sys','🔗 WHOS se data laa raha hoon...');
+    try {
+      let endpoint = null;
+      if (/inventory/.test(lower)) endpoint = '/inventory';
+      else if (/project/.test(lower)) endpoint = '/projects';
+      else if (/task/.test(lower)) endpoint = '/tasks';
+      else if (/client/.test(lower)) endpoint = '/clients';
+      else if (/expense/.test(lower)) endpoint = '/expenses';
+      else endpoint = '/tasks';
+
+      const r = await whosCall(endpoint);
+      if (r.ok && r.data) {
+        const dataStr = JSON.stringify(r.data, null, 2).slice(0, 2000);
+        addMsg('ai','<small>🦅 WHOS '+endpoint+'</small><pre>'+escapeHtml(dataStr)+'</pre>');
+      } else if (r.status === 401) {
+        addMsg('err','❌ WHOS token expire. Dobara login karein.');
+        whosLogout();
+      } else {
+        addMsg('err','⚠️ WHOS se data nahi mila: ' + (r.error || 'unknown'));
+      }
+      return;
+    } catch(e) {
+      addMsg('err','❌ WHOS error: ' + e.message);
+      return;
+    }
+  }
+
+  if (!key) { addMsg('err','❌ Pehle Groq API Key set karein.'); return; }
+  const agent = routeMessage(m);
+  addMsg('sys','🧠 ' + agent.toUpperCase() + ' soch raha hai...');
+  try {
+    const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method:'POST',
+      headers:{'Authorization':'Bearer '+key,'Content-Type':'application/json'},
+      body: JSON.stringify({
+        model: 'openai/gpt-oss-20b',
+        messages: [
+          { role:'system', content: BRAINS[agent] || BRAINS.smart_brain },
+          { role:'user', content: m }
+        ],
+        max_tokens: 1000, temperature: 0.7
+      })
+    });
+    const d = await r.json();
+    if (d.choices && d.choices[0]) {
+      const ans = d.choices[0].message.content;
+      addMsg('ai','<small>🦅 '+agent.toUpperCase()+'</small>'+escapeHtml(ans).replace(/\n/g,'<br>'));
+    } else if (d.error) { addMsg('err','❌ '+(d.error.message||'Error')); }
+    else { addMsg('err','❌ Jawab nahi aya.'); }
+  } catch(e) { addMsg('err','❌ '+e.message); }
+}
+</script>
+
+</body>
+</html>
