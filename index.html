@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="ur">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#111">
+<title>SHAHEEN 100 ARMY</title>
+<style>
+* { box-sizing: border-box; }
+body { background:#0a0a0a; color:#e0e0e0; font-family:Arial,sans-serif; margin:0; padding:8px; font-size:15px; }
+.header { background:linear-gradient(135deg,#1a1a2e,#16213e); padding:12px; border-radius:12px; text-align:center; border:1px solid #2a2a4a; margin-bottom:8px; }
+.header h1 { margin:0; font-size:20px; color:#ffd700; }
+.header p { margin:4px 0 0; font-size:12px; color:#888; }
+.status { font-size:11px; padding:4px 8px; border-radius:6px; display:inline-block; margin-top:4px; }
+.status-ok { background:#0a3d0a; color:#b8ffb8; }
+.status-err { background:#3d0a0a; color:#ff8888; }
+.key-box { background:#1a1a1a; padding:10px; border-radius:10px; margin-bottom:8px; border:1px solid #2a2a2a; display:flex; gap:6px; }
+.key-box input { flex:1; padding:10px; border-radius:8px; border:1px solid #333; background:#0f0f0f; color:#fff; font-size:14px; min-width:0; }
+.key-box button { padding:10px 16px; border-radius:8px; border:none; background:#f80; color:#000; font-weight:bold; font-size:14px; }
+.quick-actions { display:flex; gap:6px; margin-bottom:8px; overflow-x:auto; padding-bottom:4px; }
+.quick-actions button { padding:8px 12px; border-radius:8px; border:1px solid #2a2a4a; background:#1a1a2e; color:#ffd700; font-size:12px; white-space:nowrap; }
+.chat { background:#1a1a1a; padding:12px; border-radius:10px; margin-bottom:8px; height:calc(100vh - 280px); min-height:280px; overflow-y:auto; border:1px solid #2a2a2a; }
+.msg { margin:8px 0; padding:8px 12px; border-radius:10px; line-height:1.4; word-wrap:break-word; font-size:14px; }
+.msg-user { background:#0a3d0a; color:#b8ffb8; margin-left:20%; text-align:right; border:1px solid #1a5d1a; }
+.msg-ai { background:#2a2a1a; color:#ffd; margin-right:10%; border:1px solid #4a4a2a; }
+.msg-sys { background:#1a1a2e; color:#88aaff; text-align:center; font-size:12px; border:1px solid #2a2a4a; }
+.msg-err { background:#3d0a0a; color:#ff8888; border:1px solid #5d1a1a; }
+.msg small { color:#888; font-size:11px; display:block; margin-bottom:2px; }
+.input-box { display:flex; gap:6px; position:sticky; bottom:0; background:#0a0a0a; padding-top:6px; }
+.input-box input { flex:1; padding:12px; border-radius:10px; border:1px solid #333; background:#1a1a1a; color:#fff; font-size:15px; min-width:0; }
+.input-box button { padding:12px 18px; border-radius:10px; border:none; background:#0a8; color:#fff; font-weight:bold; font-size:15px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+<h1>🦅 SHAHEEN 100 ARMY</h1>
+<p>Ustad Jee • WHOS Connected</p>
+<span class="status status-err" id="whosStatus">⏳ WHOS check...</span>
+</div>
+
+<div class="key-box">
+<input id="apikey" type="password" placeholder="Groq API Key...">
+<button onclick="saveKey()">SET</button>
+</div>
+
+<div class="quick-actions">
+<button onclick="quick('Mere saare WHOS missions check karo')">📊 Missions</button>
+<button onclick="quick('Inventory mission: 3 mahine se waiting. Activate karo.')">📦 Inventory</button>
+<button onclick="quick('IT services: clients laane ka plan banao')">💻 IT</button>
+<button onclick="quick('Construction contracts revive karo')">🏗️ Construction</button>
+<button onclick="quick('Motivate karo, thak gaya hoon')">🔥 Booster</button>
+<button onclick="clearChat()">🗑️</button>
+</div>
+
+<div class="chat" id="chat">
+<div class="msg msg-sys">🦅 SHAHEEN ARMY online. Groq key set karein.</div>
+</div>
+
+<div class="input-box">
+<input id="msg" placeholder="Ustad Jee, hukum likhein..." onkeypress="if(event.key==='Enter')send()">
+<button onclick="send()">🚀</button>
+</div>
+
+<script src="whos-connector.js"></script>
+<script>
+const BRAINS = {
+  programmer: "Senior Programmer. Clean code, debug. Short Roman Urdu+English.",
+  marketing: "Marketing Specialist. Ads, SEO, income. Short Roman Urdu+English.",
+  designer: "UI/UX Designer. Short Roman Urdu+English.",
+  researcher: "Researcher. Current facts 2026. Short Roman Urdu+English.",
+  psychologist: "Psychologist. Empathy, advice. Short Roman Urdu+English.",
+  booster: "Booster. Motivate briefly. Roman Urdu+English.",
+  planner: "Strategic Planner. Step-by-step, free tools. Roman Urdu+English.",
+  economist: "Economist. Show income path. Reject if no income. Short.",
+  validator: "Validator. Strict Yes/No. Short.",
+  smart_brain: "Smart Brain. Clear, concise. Roman Urdu+English."
+};
+
+function routeMessage(msg) {
+  const m = msg.toLowerCase();
+  if (/code|bug|program|python|api|error/.test(m)) return "programmer";
+  if (/design|ui|ux|layout|color/.test(m)) return "designer";
+  if (/marketing|ad|seo|income|paisa|kamai|sale|client/.test(m)) return "marketing";
+  if (/research|find|verify|truth/.test(m)) return "researcher";
+  if (/motivat|boost|tired|thak|energy/.test(m)) return "booster";
+  if (/feel|emotion|sad|tension|stress/.test(m)) return "psychologist";
+  if (/plan|mission|strategy|roadmap/.test(m)) return "planner";
+  if (/income|expense|budget|profit|cost|kharach/.test(m)) return "economist";
+  return "smart_brain";
+}
+
+let key = localStorage.getItem('groq_key') || '';
+if (key) { document.getElementById('apikey').value = '****SAVED****'; }
+
+function saveKey() {
+  const k = document.getElementById('apikey').value.trim();
+  if (k && k !== '****SAVED****' && k.startsWith('gsk_')) {
+    localStorage.setItem('groq_key', k); key = k;
+    addMsg('sys','✅ Key saved!');
+  } else if (k === '****SAVED****') { addMsg('sys','Key already saved.'); }
+  else { addMsg('err','❌ "gsk_" se shuru honi chahiye.'); }
+}
+
+function addMsg(type, text) {
+  const chat = document.getElementById('chat');
+  const div = document.createElement('div');
+  div.className = 'msg msg-' + type;
+  div.innerHTML = text;
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function clearChat() { document.getElementById('chat').innerHTML = '<div class="msg msg-sys">Cleared.</div>'; }
+function quick(text) { document.getElementById('msg').value = text; send(); }
+
+// WHOS status check
+(async () => {
+  try {
+    await discoverEndpoints();
+    const st = document.getElementById('whosStatus');
+    st.className = 'status status-ok';
+    st.textContent = '✅ WHOS Live';
+  } catch(e) {
+    document.getElementById('whosStatus').textContent = '⚠️ WHOS offline';
+  }
+})();
+
+async function send() {
+  const input = document.getElementById('msg');
+  const m = input.value.trim();
+  if (!m) return;
+  if (!key) { addMsg('err','❌ Pehle Groq key set karein.'); return; }
+  addMsg('user', m);
+  input.value = '';
+
+  // WHOS missions keyword
+  const lower = m.toLowerCase();
+  if (/mission|missions|whos|inventory.*activate|it.*client/.test(lower)) {
+    addMsg('sys','🔗 WHOS se pooch raha hoon...');
+    try {
+      const missions = await whosCall('missions');
+      if (missions.ok && missions.data) {
+        addMsg('ai','<small>🦅 WHOS</small>'+escapeHtml(JSON.stringify(missions.data, null, 2)).replace(/\n/g,'<br>'));
+        return;
+      }
+    } catch(e) {}
+  }
+
+  const agent = routeMessage(m);
+  addMsg('sys','🧠 ' + agent.toUpperCase() + ' soch raha hai...');
+  try {
+    const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method:'POST',
+      headers:{'Authorization':'Bearer '+key,'Content-Type':'application/json'},
+      body: JSON.stringify({
+        model: 'openai/gpt-oss-20b',
+        messages: [
+          { role:'system', content: BRAINS[agent] || BRAINS.smart_brain },
+          { role:'user', content: m }
+        ],
+        max_tokens: 1000, temperature: 0.7
+      })
+    });
+    const d = await r.json();
+    if (d.choices && d.choices[0]) {
+      const ans = d.choices[0].message.content;
+      addMsg('ai','<small>🦅 '+agent.toUpperCase()+'</small>'+escapeHtml(ans).replace(/\n/g,'<br>'));
+    } else if (d.error) { addMsg('err','❌ '+(d.error.message||'Error')); }
+    else { addMsg('err','❌ Jawab nahi aya.'); }
+  } catch(e) { addMsg('err','❌ '+e.message); }
+}
+
+function escapeHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+</script>
+
+</body>
+</html>
