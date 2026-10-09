@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="ur">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#111">
+<title>SHAHEEN 100 ARMY</title>
+<style>
+* { box-sizing: border-box; }
+body { background:#0a0a0a; color:#e0e0e0; font-family:Arial,sans-serif; margin:0; padding:8px; font-size:15px; }
+.header { background:linear-gradient(135deg,#1a1a2e,#16213e); padding:12px; border-radius:12px; text-align:center; border:1px solid #2a2a4a; margin-bottom:8px; }
+.header h1 { margin:0; font-size:20px; color:#ffd700; }
+.header p { margin:4px 0 0; font-size:12px; color:#888; }
+.status { font-size:11px; padding:4px 8px; border-radius:6px; display:inline-block; margin-top:4px; }
+.status-ok { background:#0a3d0a; color:#b8ffb8; }
+.status-err { background:#3d0a0a; color:#ff8888; }
+.status-warn { background:#3d3d0a; color:#ffff88; }
+.box { background:#1a1a1a; padding:10px; border-radius:10px; margin-bottom:8px; border:1px solid #2a2a2a; display:flex; gap:6px; flex-wrap:wrap; }
+.box input { flex:1; padding:10px; border-radius:8px; border:1px solid #333; background:#0f0f0f; color:#fff; font-size:14px; min-width:120px; }
+.box button { padding:10px 16px; border-radius:8px; border:none; background:#f80; color:#000; font-weight:bold; font-size:14px; }
+.box button.green { background:#0a8; color:#fff; }
+.box button.red { background:#c33; color:#fff; }
+.quick-actions { display:flex; gap:6px; margin-bottom:8px; overflow-x:auto; padding-bottom:4px; }
+.quick-actions button { padding:8px 12px; border-radius:8px; border:1px solid #2a2a4a; background:#1a1a2e; color:#ffd700; font-size:12px; white-space:nowrap; }
+.chat { background:#1a1a1a; padding:12px; border-radius:10px; margin-bottom:8px; height:calc(100vh - 340px); min-height:240px; overflow-y:auto; border:1px solid #2a2a2a; }
+.msg { margin:8px 0; padding:8px 12px; border-radius:10px; line-height:1.4; word-wrap:break-word; font-size:14px; }
+.msg-user { background:#0a3d0a; color:#b8ffb8; margin-left:20%; text-align:right; border:1px solid #1a5d1a; }
+.msg-ai { background:#2a2a1a; color:#ffd; margin-right:10%; border:1px solid #4a4a2a; }
+.msg-sys { background:#1a1a2e; color:#88aaff; text-align:center; font-size:12px; border:1px solid #2a2a4a; }
+.msg-err { background:#3d0a0a; color:#ff8888; border:1px solid #5d1a1a; }
+.msg pre { background:#0a0a0a; padding:8px; border-radius:6px; overflow-x:auto; font-size:12px; margin:4px 0; }
+.msg img { max-width:100%; border-radius:8px; margin-top:6px; }
+.msg small { color:#888; font-size:11px; display:block; margin-bottom:2px; }
+.input-box { display:flex; gap:6px; position:sticky; bottom:0; background:#0a0a0a; padding-top:6px; align-items:center; }
+.input-box input[type="text"] { flex:1; padding:12px; border-radius:10px; border:1px solid #333; background:#1a1a1a; color:#fff; font-size:15px; min-width:0; }
+.input-box button { padding:12px 18px; border-radius:10px; border:none; background:#0a8; color:#fff; font-weight:bold; font-size:15px; }
+.input-box label.photo-btn { padding:12px 14px; border-radius:10px; background:#f80; color:#000; font-weight:bold; font-size:18px; cursor:pointer; display:inline-block; }
+.input-box input[type="file"] { display:none; }
+.hidden { display:none; }
+.photo-preview { margin-top:6px; text-align:center; }
+.photo-preview img { max-width:200px; border-radius:8px; }
+.photo-preview button { background:#c33; color:#fff; border:none; padding:4px 10px; border-radius:6px; margin-top:4px; font-size:12px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+<h1>🦅 SHAHEEN 100 ARMY</h1>
+<p>Ustad Jee • WHOS Connected</p>
+<span class="status status-err" id="whosStatus">⏳ WHOS check...</span>
+</div>
+
+<div class="box" id="whosLoginBox">
+<input id="whosPass" type="password" placeholder="WHOS Password">
+<button onclick="whosLogin()" class="green">WHOS Login</button>
+</div>
+
+<div class="box hidden" id="whosInfoBox">
+<span style="color:#b8ffb8; font-size:13px;">✅ WHOS: <span id="whosUser">-</span></span>
+<button onclick="whosLogout()" class="red">Logout</button>
+</div>
+
+<div class="box">
+<input id="apikey" type="password" placeholder="Groq API Key...">
+<button onclick="saveKey()">SET</button>
+</div>
+
+<div class="quick-actions">
+<button onclick="pilotDashboard()">📊 Dashboard</button>
+<button onclick="quick('Inventory ka data dikhao')">📦 Inventory</button>
+<button onclick="quick('Projects dikhao')">📁 Projects</button>
+<button onclick="quick('Tasks dikhao')">✅ Tasks</button>
+<button onclick="quick('Motivate karo')">🔥 Booster</button>
+<button onclick="clearChat()">🗑️</button>
+</div>
+
+<div class="chat" id="chat">
+<div class="msg msg-sys">🦅 SHAHEEN ARMY online. Pehle WHOS password daalein.</div>
+</div>
+
+<div class="photo-preview hidden" id="photoPreview">
+<img id="previewImg" src="">
+<button onclick="removePhoto()">✕ Remove Photo</button>
+</div>
+
+<div class="input-box">
+<label class="photo-btn" for="photoInput">📷</label>
+<input type="file" id="photoInput" accept="image/*" capture="environment" onchange="handlePhoto(this)">
+<input id="msg" type="text" placeholder="Ustad Jee, hukum likhein..." onkeypress="if(event.key==='Enter')send()">
+<button onclick="send()">🚀</button>
+</div>
+
+<script>
+const WHOS_URL = "https://whos-backend-production.up.railway.app";
+const WHOS_API = "/api/v1";
+const WHOS_EMAIL = "mohammadbashiranjum@gmail.com";
+
+let whosToken = localStorage.getItem('whos_token') || "";
+let key = localStorage.getItem('groq_key') || "";
+let pendingPhoto = null;
+
+// ==========================================
+// AUTO-LOGIN (ek dafa login, hamesha logged in)
+// ==========================================
+if (whosToken) {
+  showLoggedIn();
+} else {
+  // Kuch nahi - login form dikhao
+}
+
+if (key) {
+  document.getElementById('apikey').value = '****SAVED****';
+}
+
+// ==========================================
+// LOGIN
+// ==========================================
+async function whosLogin() {
+  const pass = document.getElementById('whosPass').value;
+  if (!pass) { addMsg('err','❌ Password daalein.'); return; }
+  addMsg('sys','🔐 WHOS login...');
+  try {
+    const r = await fetch(WHOS_URL + WHOS_API + '/auth/login', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ identifier: WHOS_EMAIL, password: pass })
+    });
+    const d = await r.json();
+    if (d.accessToken || d.access_token || d.token) {
+      whosToken = d.accessToken || d.access_token || d.token;
+      localStorage.setItem('whos_token', whosToken);
+      document.getElementById('whosPass').value = '';
+      showLoggedIn();
+      addMsg('ai','✅ WHOS login successful! Ab hamesha logged in rahenge.');
+    } else {
+      addMsg('err','❌ Login failed: ' + JSON.stringify(d));
+    }
+  } catch(e) {
+    addMsg('err','❌ Login error: ' + e.message);
+  }
+}
+
+function showLoggedIn() {
+  document.getElementById('whosLoginBox').classList.add('hidden');
+  document.getElementById('whosInfoBox').classList.remove('hidden');
+  document.getElementById('whosUser').textContent = WHOS_EMAIL;
+  const st = document.getElementById('whosStatus');
+  st.className = 'status status-ok';
+  st.textContent = '✅ WHOS Logged In';
+}
+
+function whosLogout() {
+  if (!confirm('Logout karna chahte hain?')) return;
+  whosToken = "";
+  localStorage.removeItem('whos_token');
+  document.getElementById('whosInfoBox').classList.add('hidden');
+  document.getElementById('whosLoginBox').classList.remove('hidden');
+  document.getElementById('whosStatus').textContent = '🔓 Logged out';
+  addMsg('sys','WHOS logout ho gaya.');
+}
+
+// ==========================================
+// WHOS API
+// ==========================================
+async function whosCall(path, method = "GET", body = null) {
+  if (!whosToken) return { ok:false, error:"WHOS login required" };
+  const opts = {
+    method,
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer " + whosToken
+    }
+  };
+  if (body) opts.body = JSON.stringify(body);
+  try {
+    const r = await fetch(WHOS_URL + WHOS_API + path, opts);
+    const data = await r.json();
+    return { ok:r.ok, status:r.status, data };
+  } catch(e) { return { ok:false, error:e.message }; }
+}
+
+// ==========================================
+// DASHBOARD
+// ==========================================
+async function pilotDashboard() {
+  if (!whosToken) { addMsg('err','❌ Pehle WHOS login karein.'); return; }
+  addMsg('sys','📊 Dashboard laa raha hoon...');
+  const r = await whosCall('/inventory/pilot/dashboard');
+  if (r.ok && r.data) {
+    const d = r.data;
+    let out = '📊 <b>INVENTORY DASHBOARD</b><br><br>';
+    out += '📦 Total Items: <b>' + d.total + '</b><br>';
+    out += '✅ Actionable: <b>' + d.actionable + '</b><br><br>';
+    out += '<b>By Status:</b><br>';
+    for (const [status, count] of Object.entries(d.byStatus || {})) {
+      out += '• ' + status + ': <b>' + count + '</b><br>';
+    }
+    out += '<br><b>Ready Items (Top 10):</b><br>';
+    (d.items || []).slice(0, 10).forEach((it, i) => {
+      out += (i+1) + '. ' + it.sku + ' — ' + it.item + '<br>';
+    });
+    addMsg('ai', out);
+  } else {
+    addMsg('err', '❌ ' + (r.error || r.status || 'Dashboard error'));
+  }
+}
+
+// ==========================================
+// PHOTO UPLOAD
+// ==========================================
+function handlePhoto(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    pendingPhoto = e.target.result;
+    document.getElementById('previewImg').src = pendingPhoto;
+    document.getElementById('photoPreview').classList.remove('hidden');
+  };
+  reader.readAsDataURL(file);
+}
+
+function removePhoto() {
+  pendingPhoto = null;
+  document.getElementById('photoInput').value = '';
+  document.getElementById('photoPreview').classList.add('hidden');
+}
+
+// ==========================================
+// SAVE API KEY
+// ==========================================
+function saveKey() {
+  const k = document.getElementById('apikey').value.trim();
+  if (k && k !== '****SAVED****' && k.startsWith('gsk_')) {
+    localStorage.setItem('groq_key', k); key = k;
+    document.getElementById('apikey').value = '****SAVED****';
+    addMsg('sys','✅ Groq key save ho gayi! Ab hamesha saved rahegi.');
+  } else if (k === '****SAVED****') {
+    addMsg('sys','Key already saved.');
+  } else {
+    addMsg('err','❌ "gsk_" se shuru honi chahiye.');
+  }
+}
+
+// ==========================================
+// CHAT UI
+// ==========================================
+function addMsg(type, text, imgSrc) {
+  const chat = document.getElementById('chat');
+  const div = document.createElement('div');
+  div.className = 'msg msg-' + type;
+  div.innerHTML = text;
+  if (imgSrc) {
+    const img = document.createElement('img');
+    img.src = imgSrc;
+    div.appendChild(img);
+  }
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+}
+function clearChat() { document.getElementById('chat').innerHTML = '<div class="msg msg-sys">Cleared.</div>'; }
+function quick(text) { document.getElementById('msg').value = text; send(); }
+function escapeHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// ==========================================
+// BRAINS
+// ==========================================
+const BRAINS = {
+  programmer: "Senior Programmer. Clean code, debug. Short Roman Urdu+English.",
+  marketing: "Marketing Specialist. Ads, SEO, income. Short Roman Urdu+English.",
+  designer: "UI/UX Designer. Short Roman Urdu+English.",
+  researcher: "Researcher. Current facts 2026. Short Roman Urdu+English.",
+  psychologist: "Psychologist. Empathy, advice. Short Roman Urdu+English.",
+  booster: "Booster. Motivate briefly. Roman Urdu+English.",
+  planner: "Strategic Planner. Step-by-step, free tools. Roman Urdu+English.",
+  economist: "Economist. Show income path. Reject if no income. Short.",
+  smart_brain: "Smart Brain. Clear, concise. Roman Urdu+English."
+};
+
+function routeMessage(msg) {
+  const m = msg.toLowerCase();
+  if (/code|bug|program|python|api|error/.test(m)) return "programmer";
+  if (/design|ui|ux|layout|color/.test(m)) return "designer";
+  if (/marketing|ad|seo|income|paisa|kamai|sale|client/.test(m)) return "marketing";
+  if (/research|find|verify|truth/.test(m)) return "researcher";
+  if (/motivat|boost|tired|thak|energy/.test(m)) return "booster";
+  if (/feel|emotion|sad|tension|stress/.test(m)) return "psychologist";
+  if (/plan|mission|strategy|roadmap/.test(m)) return "planner";
+  if (/income|expense|budget|profit|cost|kharach/.test(m)) return "economist";
+  return "smart_brain";
+}
+
+// ==========================================
+// MAIN SEND
+// ==========================================
+async function send() {
+  const input = document.getElementById('msg');
+  const m = input.value.trim();
+  if (!m && !pendingPhoto) return;
+  addMsg('user', m || '(photo)', pendingPhoto);
+  input.value = '';
+  removePhoto();
+
+  const lower = m.toLowerCase();
+
+  // WHOS keyword detection
+  if (m && /mission|inventory|project|task|whos|listing|expense|client/.test(lower)) {
+    if (!whosToken) {
+      addMsg('err','❌ Pehle WHOS mein login karein.');
+      return;
+    }
+    addMsg('sys','🔗 WHOS se data laa raha hoon...');
+    try {
+      let endpoint = null;
+      if (/inventory/.test(lower)) endpoint = '/inventory';
+      else if (/project/.test(lower)) endpoint = '/projects';
+      else if (/task/.test(lower)) endpoint = '/tasks';
+      else if (/client/.test(lower)) endpoint = '/clients';
+      else if (/expense/.test(lower)) endpoint = '/expenses';
+      else endpoint = '/tasks';
+
+      const r = await whosCall(endpoint);
+      if (r.ok && r.data) {
+        const dataStr = JSON.stringify(r.data, null, 2).slice(0, 2000);
+        addMsg('ai','<small>🦅 WHOS '+endpoint+'</small><pre>'+escapeHtml(dataStr)+'</pre>');
+      } else if (r.status === 401) {
+        addMsg('err','❌ WHOS token expire. Dobara login karein.');
+        whosLogout();
+      } else {
+        addMsg('err','⚠️ WHOS se data nahi mila: ' + (r.error || 'unknown'));
+      }
+      return;
+    } catch(e) {
+      addMsg('err','❌ WHOS error: ' + e.message);
+      return;
+    }
+  }
+
+  // Groq AI
+  if (!key) { addMsg('err','❌ Pehle Groq API Key set karein.'); return; }
+  const agent = routeMessage(m);
+  addMsg('sys','🧠 ' + agent.toUpperCase() + ' soch raha hai...');
+  try {
+    const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method:'POST',
+      headers:{'Authorization':'Bearer '+key,'Content-Type':'application/json'},
+      body: JSON.stringify({
+        model: 'openai/gpt-oss-20b',
+        messages: [
+          { role:'system', content: BRAINS[agent] || BRAINS.smart_brain },
+          { role:'user', content: m || '(photo attached)' }
+        ],
+        max_tokens: 1000, temperature: 0.7
+      })
+    });
+    const d = await r.json();
+    if (d.choices && d.choices[0]) {
+      const ans = d.choices[0].message.content;
+      addMsg('ai','<small>🦅 '+agent.toUpperCase()+'</small>'+escapeHtml(ans).replace(/\n/g,'<br>'));
+    } else if (d.error) { addMsg('err','❌ '+(d.error.message||'Error')); }
+    else { addMsg('err','❌ Jawab nahi aya.'); }
+  } catch(e) { addMsg('err','❌ '+e.message); }
+}
+</script>
+
+</body>
+</html>
