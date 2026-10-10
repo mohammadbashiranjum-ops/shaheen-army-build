@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="ur">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#111">
+<title>SHAHEEN 100 ARMY</title>
+<style>
+* { box-sizing: border-box; }
+body { background:#0a0a0a; color:#e0e0e0; font-family:Arial,sans-serif; margin:0; padding:8px; font-size:15px; }
+.header { background:linear-gradient(135deg,#1a1a2e,#16213e); padding:12px; border-radius:12px; text-align:center; border:1px solid #2a2a4a; margin-bottom:8px; position:relative; }
+.header h1 { margin:0; font-size:20px; color:#ffd700; }
+.header p { margin:4px 0 0; font-size:12px; color:#888; }
+.header .settings-btn { position:absolute; top:10px; right:10px; background:#2a2a4a; border:1px solid #4a4a6a; color:#ffd700; width:36px; height:36px; border-radius:8px; font-size:18px; cursor:pointer; }
+.status { font-size:11px; padding:4px 8px; border-radius:6px; display:inline-block; margin-top:4px; }
+.status-ok { background:#0a3d0a; color:#b8ffb8; }
+.status-err { background:#3d0a0a; color:#ff8888; }
+.status-warn { background:#3d3d0a; color:#ffff88; }
+.settings-panel { background:#1a1a1a; padding:10px; border-radius:10px; margin-bottom:8px; border:1px solid #2a2a4a; }
+.settings-panel.hidden { display:none; }
+.settings-panel h3 { margin:0 0 8px 0; font-size:14px; color:#ffd700; }
+.box { background:#0f0f0f; padding:8px; border-radius:8px; margin-bottom:6px; border:1px solid #2a2a2a; display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
+.box input { flex:1; padding:10px; border-radius:8px; border:1px solid #333; background:#000; color:#fff; font-size:14px; min-width:100px; }
+.box button { padding:10px 16px; border-radius:8px; border:none; background:#f80; color:#000; font-weight:bold; font-size:14px; }
+.box button.green { background:#0a8; color:#fff; }
+.box button.red { background:#c33; color:#fff; }
+.quick-actions { display:flex; gap:6px; margin-bottom:8px; overflow-x:auto; padding-bottom:4px; }
+.quick-actions button { padding:8px 12px; border-radius:8px; border:1px solid #2a2a4a; background:#1a1a2e; color:#ffd700; font-size:12px; white-space:nowrap; }
+.quick-actions button.publish { background:#0a3d0a; color:#b8ffb8; border-color:#1a5d1a; font-weight:bold; }
+.chat { background:#1a1a1a; padding:12px; border-radius:10px; margin-bottom:8px; height:calc(100vh - 300px); min-height:280px; overflow-y:auto; border:1px solid #2a2a2a; }
+.msg { margin:8px 0; padding:8px 12px; border-radius:10px; line-height:1.4; word-wrap:break-word; font-size:14px; }
+.msg-user { background:#0a3d0a; color:#b8ffb8; margin-left:20%; text-align:right; border:1px solid #1a5d1a; }
+.msg-ai { background:#2a2a1a; color:#ffd; margin-right:10%; border:1px solid #4a4a2a; }
+.msg-sys { background:#1a1a2e; color:#88aaff; text-align:center; font-size:12px; border:1px solid #2a2a4a; }
+.msg-err { background:#3d0a0a; color:#ff8888; border:1px solid #5d1a1a; }
+.msg pre { background:#0a0a0a; padding:8px; border-radius:6px; overflow-x:auto; font-size:12px; margin:4px 0; }
+.msg img { max-width:100%; border-radius:8px; margin-top:6px; }
+.msg small { color:#888; font-size:11px; display:block; margin-bottom:2px; }
+.input-box { display:flex; gap:6px; position:sticky; bottom:0; background:#0a0a0a; padding-top:6px; align-items:center; }
+.input-box input[type="text"] { flex:1; padding:12px; border-radius:10px; border:1px solid #333; background:#1a1a1a; color:#fff; font-size:15px; min-width:0; }
+.input-box button { padding:12px 18px; border-radius:10px; border:none; background:#0a8; color:#fff; font-weight:bold; font-size:15px; }
+.input-box label.photo-btn { padding:12px 14px; border-radius:10px; background:#f80; color:#000; font-weight:bold; font-size:18px; cursor:pointer; display:inline-block; }
+.input-box input[type="file"] { display:none; }
+.photo-preview { margin-top:6px; text-align:center; }
+.photo-preview img { max-width:200px; border-radius:8px; }
+.photo-preview button { background:#c33; color:#fff; border:none; padding:4px 10px; border-radius:6px; margin-top:4px; font-size:12px; }
+.hidden { display:none; }
+</style>
+</head>
+<body>
+
+<div class="header">
+<h1>🦅 SHAHEEN 100 ARMY</h1>
+<p>Ustad Jee • WHOS Connected</p>
+<span class="status status-err" id="whosStatus">⏳ WHOS check...</span>
+<button class="settings-btn" onclick="toggleSettings()">⚙️</button>
+</div>
+
+<div class="settings-panel hidden" id="settingsPanel">
+<h3>⚙️ Settings</h3>
+
+<div class="box" id="whosLoginBox">
+<input id="whosEmail" type="text" placeholder="WHOS Email or Username" value="mohammadbashiranjum@gmail.com">
+<input id="whosPass" type="password" placeholder="WHOS Password">
+<button onclick="whosLogin()" class="green">Login</button>
+</div>
+
+<div class="box hidden" id="whosInfoBox">
+<span style="color:#b8ffb8; font-size:12px;">✅ <span id="whosUser">-</span></span>
+<button onclick="whosLogout()" class="red">Logout</button>
+</div>
+
+<div class="box">
+<input id="apikey" type="password" placeholder="Groq API Key...">
+<button onclick="saveKey()">SET</button>
+</div>
+</div>
+
+<div class="quick-actions">
+<button onclick="pilotDashboard()">📊 Dashboard</button>
+<button onclick="quick('Inventory ka data dikhao')">📦 Inventory</button>
+<button onclick="quick('Projects dikhao')">📁 Projects</button>
+<button onclick="quick('Tasks dikhao')">✅ Tasks</button>
+<button onclick="publishAll()" class="publish">🚀 Publish All</button>
+<button onclick="quick('Motivate karo')">🔥 Booster</button>
+<button onclick="clearChat()">🗑️</button>
+</div>
+
+<div class="chat" id="chat">
+<div class="msg msg-sys">🦅 SHAHEEN ARMY online. ⚙️ Settings mein jaakar WHOS password daalein.</div>
+</div>
+
+<div class="photo-preview hidden" id="photoPreview">
+<img id="previewImg" src="">
+<button onclick="removePhoto()">✕ Remove Photo</button>
+</div>
+
+<div class="input-box">
+<label class="photo-btn" for="photoInput">📷</label>
+<input type="file" id="photoInput" accept="image/*" capture="environment" onchange="handlePhoto(this)">
+<input id="msg" type="text" placeholder="Ustad Jee, hukum likhein..." onkeypress="if(event.key==='Enter')send()">
+<button onclick="send()">🚀</button>
+</div>
+
+<script>
+const WHOS_URL = "https://whos-backend-production.up.railway.app";
+const WHOS_API = "/api/v1";
+
+let whosToken = localStorage.getItem('whos_token') || "";
+let whosEmailSaved = localStorage.getItem('whos_email') || "mohammadbashiranjum@gmail.com";
+let key = localStorage.getItem('groq_key') || "";
+let pendingPhoto = null;
+
+// Auto-fill email if saved
+document.getElementById('whosEmail').value = whosEmailSaved;
+
+if (whosToken) showLoggedIn();
+if (key) document.getElementById('apikey').value = '****SAVED****';
+
+function toggleSettings() {
+  document.getElementById('settingsPanel').classList.toggle('hidden');
+}
+
+async function whosLogin() {
+  const email = document.getElementById('whosEmail').value.trim();
+  const pass = document.getElementById('whosPass').value;
+  if (!email || !pass) { addMsg('err','❌ Email aur password daalein.'); return; }
+  
+  addMsg('sys','🔐 WHOS login...');
+  try {
+    const r = await fetch(WHOS_URL + WHOS_API + '/auth/login', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ identifier: email, password: pass })
+    });
+    const d = await r.json();
+    if (d.accessToken || d.access_token || d.token) {
+      whosToken = d.accessToken || d.access_token || d.token;
+      whosEmailSaved = email;
+      localStorage.setItem('whos_token', whosToken);
+      localStorage.setItem('whos_email', email);
+      document.getElementById('whosPass').value = '';
+      showLoggedIn();
+      addMsg('ai','✅ WHOS login successful! Ab hamesha logged in rahenge.');
+    } else {
+      addMsg('err','❌ Login failed: ' + JSON.stringify(d));
+    }
+  } catch(e) {
+    addMsg('err','❌ Login error: ' + e.message);
+  }
+}
+
+function showLoggedIn() {
+  document.getElementById('whosLoginBox').classList.add('hidden');
+  document.getElementById('whosInfoBox').classList.remove('hidden');
+  document.getElementById('whosUser').textContent = whosEmailSaved;
+  const st = document.getElementById('whosStatus');
+  st.className = 'status status-ok';
+  st.textContent = '✅ WHOS Logged In';
+}
+
+function whosLogout() {
+  if (!confirm('Logout karna chahte hain?')) return;
+  whosToken = "";
+  localStorage.removeItem('whos_token');
+  document.getElementById('whosInfoBox').classList.add('hidden');
+  document.getElementById('whosLoginBox').classList.remove('hidden');
+  document.getElementById('whosStatus').textContent = '🔓 Logged out';
+  addMsg('sys','WHOS logout ho gaya.');
+}
+
+async function whosCall(path, method = "GET", body = null) {
+  if (!whosToken) return { ok:false, error:"WHOS login required" };
+  const opts = {
+    method,
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer " + whosToken
+    }
+  };
+  if (body) opts.body = JSON.stringify(body);
+  try {
+    const r = await fetch(WHOS_URL + WHOS_API + path, opts);
+    const data = await r.json();
+    return { ok:r.ok, status:r.status, data };
+  } catch(e) { return { ok:false, error:e.message }; }
+}
+
+async function pilotDashboard() {
+  if (!whosToken) { addMsg('err','❌ Pehle WHOS login karein (⚙️ Settings).'); return; }
+  addMsg('sys','📊 Dashboard laa raha hoon...');
+  const r = await whosCall('/inventory/pilot/dashboard');
+  if (r.ok && r.data) {
+    const d = r.data;
+    let out = '📊 <b>INVENTORY DASHBOARD</b><br><br>';
+    out += '📦 Total: <b>' + d.total + '</b> | ✅ Actionable: <b>' + d.actionable + '</b><br><br>';
+    for (const [status, count] of Object.entries(d.byStatus || {})) {
+      out += '• ' + status + ': <b>' + count + '</b><br>';
+    }
+    out += '<br><b>Top 10:</b><br>';
+    (d.items || []).slice(0, 10).forEach((it, i) => {
+      out += (i+1) + '. ' + it.sku + ' — ' + it.item + '<br>';
+    });
+    addMsg('ai', out);
+  } else {
+    addMsg('err', '❌ ' + (r.error || r.status || 'Dashboard error'));
+  }
+}
+
+async function publishAll() {
+  if (!whosToken) { addMsg('err','❌ Pehle WHOS login karein (⚙️ Settings).'); return; }
+  if (!confirm('3 approved items Facebook + Instagram par publish karein?')) return;
+  addMsg('sys','🚀 Publishing approved listings...');
+  const r = await whosCall('/meta-publishing/publish-approved', 'POST', {
+    channels: ['FACEBOOK_PAGE', 'INSTAGRAM']
+  });
+  if (r.ok && r.data) {
+    const d = r.data;
+    let out = '🚀 <b>PUBLISH RESULTS</b><br><br>';
+    out += 'Total: <b>' + d.total + '</b> | ✅ Published: <b>' + d.published + '</b> | ⚠️ Skipped: <b>' + d.skipped + '</b> | ❌ Failed: <b>' + d.failed + '</b><br><br>';
+    (d.results || []).forEach((it) => {
+      out += '<b>' + it.sku + '</b> — ' + it.status;
+      if (it.publications) {
+        out += '<br>&nbsp;&nbsp;';
+        if (it.publications.FACEBOOK_PAGE) out += '📘 FB: ' + it.publications.FACEBOOK_PAGE.id + '<br>';
+        if (it.publications.INSTAGRAM) out += '&nbsp;&nbsp;📷 IG: ' + it.publications.INSTAGRAM.id;
+      }
+      if (it.reason) out += ' (' + it.reason + ')';
+      if (it.error) out += ' — ' + it.error;
+      out += '<br>';
+    });
+    addMsg('ai', out);
+  } else {
+    addMsg('err', '❌ Publish error: ' + (r.error || JSON.stringify(r.data) || r.status));
+  }
+}
+
+function handlePhoto(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    pendingPhoto = e.target.result;
+    document.getElementById('previewImg').src = pendingPhoto;
+    document.getElementById('photoPreview').classList.remove('hidden');
+  };
+  reader.readAsDataURL(file);
+}
+
+function removePhoto() {
+  pendingPhoto = null;
+  document.getElementById('photoInput').value = '';
+  document.getElementById('photoPreview').classList.add('hidden');
+}
+
+function saveKey() {
+  const k = document.getElementById('apikey').value.trim();
+  if (k && k !== '****SAVED****' && k.startsWith('gsk_')) {
+    localStorage.setItem('groq_key', k); key = k;
+    document.getElementById('apikey').value = '****SAVED****';
+    addMsg('sys','✅ Groq key save ho gayi!');
+  } else if (k === '****SAVED****') {
+    addMsg('sys','Key already saved.');
+  } else {
+    addMsg('err','❌ "gsk_" se shuru honi chahiye.');
+  }
+}
+
+function addMsg(type, text, imgSrc) {
+  const chat = document.getElementById('chat');
+  const div = document.createElement('div');
+  div.className = 'msg msg-' + type;
+  div.innerHTML = text;
+  if (imgSrc) {
+    const img = document.createElement('img');
+    img.src = imgSrc;
+    div.appendChild(img);
+  }
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+}
+function clearChat() { document.getElementById('chat').innerHTML = '<div class="msg msg-sys">Cleared.</div>'; }
+function quick(text) { document.getElementById('msg').value = text; send(); }
+function escapeHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+const BRAINS = {
+  programmer: "Senior Programmer. Clean code, debug. Short Roman Urdu+English.",
+  marketing: "Marketing Specialist. Ads, SEO, income. Short Roman Urdu+English.",
+  designer: "UI/UX Designer. Short Roman Urdu+English.",
+  researcher: "Researcher. Current facts 2026. Short Roman Urdu+English.",
+  psychologist: "Psychologist. Empathy, advice. Short Roman Urdu+English.",
+  booster: "Booster. Motivate briefly. Roman Urdu+English.",
+  planner: "Strategic Planner. Step-by-step, free tools. Roman Urdu+English.",
+  economist: "Economist. Show income path. Reject if no income. Short.",
+  smart_brain: "Smart Brain. Clear, concise. Roman Urdu+English."
+};
+
+function routeMessage(msg) {
+  const m = msg.toLowerCase();
+  if (/code|bug|program|python|api|error/.test(m)) return "programmer";
+  if (/design|ui|ux|layout|color/.test(m)) return "designer";
+  if (/marketing|ad|seo|income|paisa|kamai|sale|client/.test(m)) return "marketing";
+  if (/research|find|verify|truth/.test(m)) return "researcher";
+  if (/motivat|boost|tired|thak|energy/.test(m)) return "booster";
+  if (/feel|emotion|sad|tension|stress/.test(m)) return "psychologist";
+  if (/plan|mission|strategy|roadmap/.test(m)) return "planner";
+  if (/income|expense|budget|profit|cost|kharach/.test(m)) return "economist";
+  return "smart_brain";
+}
+
+async function send() {
+  const input = document.getElementById('msg');
+  const m = input.value.trim();
+  if (!m && !pendingPhoto) return;
+  addMsg('user', m || '(photo)', pendingPhoto);
+  input.value = '';
+  removePhoto();
+
+  const lower = m.toLowerCase();
+
+  if (m && /mission|inventory|project|task|whos|listing|expense|client/.test(lower)) {
+    if (!whosToken) {
+      addMsg('err','❌ Pehle WHOS mein login karein (⚙️ Settings).');
+      return;
+    }
+    addMsg('sys','🔗 WHOS se data laa raha hoon...');
+    try {
+      let endpoint = null;
+      if (/inventory/.test(lower)) endpoint = '/inventory';
+      else if (/project/.test(lower)) endpoint = '/projects';
+      else if (/task/.test(lower)) endpoint = '/tasks';
+      else if (/client/.test(lower)) endpoint = '/clients';
+      else if (/expense/.test(lower)) endpoint = '/expenses';
+      else endpoint = '/tasks';
+
+      const r = await whosCall(endpoint);
+      if (r.ok && r.data) {
+        const dataStr = JSON.stringify(r.data, null, 2).slice(0, 2000);
+        addMsg('ai','<small>🦅 WHOS '+endpoint+'</small><pre>'+escapeHtml(dataStr)+'</pre>');
+      } else if (r.status === 401) {
+        addMsg('err','❌ WHOS token expire. Dobara login karein.');
+        whosLogout();
+      } else {
+        addMsg('err','⚠️ WHOS se data nahi mila: ' + (r.error || 'unknown'));
+      }
+      return;
+    } catch(e) {
+      addMsg('err','❌ WHOS error: ' + e.message);
+      return;
+    }
+  }
+
+  if (!key) { addMsg('err','❌ Pehle Groq API Key set karein (⚙️ Settings).'); return; }
+  const agent = routeMessage(m);
+  addMsg('sys','🧠 ' + agent.toUpperCase() + ' soch raha hai...');
+  try {
+    const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method:'POST',
+      headers:{'Authorization':'Bearer '+key,'Content-Type':'application/json'},
+      body: JSON.stringify({
+        model: 'openai/gpt-oss-20b',
+        messages: [
+          { role:'system', content: BRAINS[agent] || BRAINS.smart_brain },
+          { role:'user', content: m || '(photo attached)' }
+        ],
+        max_tokens: 1000, temperature: 0.7
+      })
+    });
+    const d = await r.json();
+    if (d.choices && d.choices[0]) {
+      const ans = d.choices[0].message.content;
+      addMsg('ai','<small>🦅 '+agent.toUpperCase()+'</small>'+escapeHtml(ans).replace(/\n/g,'<br>'));
+    } else if (d.error) { addMsg('err','❌ '+(d.error.message||'Error')); }
+    else { addMsg('err','❌ Jawab nahi aya.'); }
+  } catch(e) { addMsg('err','❌ '+e.message); }
+}
+</script>
+
+</body>
+</html>
