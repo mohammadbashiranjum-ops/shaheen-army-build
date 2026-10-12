@@ -39,12 +39,31 @@
       .map(({ originalIndex, ...item }) => item);
   }
 
+  function sortPublishQueueForDisplay(items, priorities = {}) {
+    const source = Array.isArray(items) ? items : [];
+    const eligible = sortPublishQueue(source, priorities);
+    const eligibleSkus = new Set(eligible.map((item) => item.sku));
+    const blocked = source
+      .filter((item) => !eligibleSkus.has(item?.sku))
+      .map((item) => ({
+        ...item,
+        priority: normalizePriority(priorities[item?.sku]),
+        queueEligible: false,
+      }));
+
+    return [
+      ...eligible.map((item) => ({ ...item, queueEligible: true })),
+      ...blocked,
+    ];
+  }
+
   const api = Object.freeze({
     PRIORITIES,
     DEFAULT_PRIORITY,
     normalizePriority,
     isPublishableQueueItem,
     sortPublishQueue,
+    sortPublishQueueForDisplay,
   });
 
   root.PublishQueueLogic = api;

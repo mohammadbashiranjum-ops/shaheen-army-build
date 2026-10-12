@@ -259,22 +259,24 @@ function renderPublishQueue(items) {
   const logic = window.PublishQueueLogic;
   root.replaceChildren();
 
-  const eligible = logic.sortPublishQueue(items, readPublishPriorities());
-  status.textContent = `${eligible.length} eligible item(s); PUBLISHED and blocked items are excluded from Publish All.`;
+  const priorities = readPublishPriorities();
+  const displayItems = logic.sortPublishQueueForDisplay(items, priorities);
+  const eligibleCount = displayItems.filter((item) => item.queueEligible).length;
+  status.textContent = `${eligibleCount} eligible item(s), shown in publish priority order; PUBLISHED and blocked items are excluded from Publish All.`;
   if (!items.length) {
     root.textContent = 'No approved listing packets are in the queue.';
     return;
   }
 
-  const priorities = readPublishPriorities();
-  for (const item of items) {
+  for (const item of displayItems) {
     const row = document.createElement('div');
     row.className = 'priority-row';
 
     const detail = document.createElement('div');
     detail.className = 'priority-item';
     const reason = item.reason ? ` — ${item.reason}` : '';
-    detail.textContent = `${item.sku} — ${item.title} | ${item.status} | ${item.imageCount} image(s)${reason}`;
+    const priorityLabel = item.queueEligible ? `${item.priority} | ` : '';
+    detail.textContent = `${priorityLabel}${item.sku} — ${item.title} | ${item.status} | ${item.imageCount} image(s)${reason}`;
     row.appendChild(detail);
 
     const select = document.createElement('select');
@@ -286,7 +288,7 @@ function renderPublishQueue(items) {
       select.appendChild(option);
     }
     select.value = logic.normalizePriority(priorities[item.sku]);
-    select.disabled = !item.publishable;
+    select.disabled = !item.queueEligible;
     select.addEventListener('change', () => savePublishPriority(item.sku, select.value));
     row.appendChild(select);
     root.appendChild(row);

@@ -4,6 +4,7 @@ const {
   DEFAULT_PRIORITY,
   normalizePriority,
   sortPublishQueue,
+  sortPublishQueueForDisplay,
 } = require('./publish-queue.js');
 
 function candidate(sku, overrides = {}) {
@@ -71,4 +72,27 @@ test('deduplicates SKUs before the priority-ordered POST list is constructed', (
   );
 
   assert.deepEqual(ordered.map((item) => item.sku), ['DUP', 'OTHER']);
+});
+
+test('displays eligible rows in execution order and blocked rows after them', () => {
+  const rows = sortPublishQueueForDisplay([
+    candidate('BLOCKED', { status: 'PUBLISHED', publishable: false }),
+    candidate('P2'),
+    candidate('P0'),
+    candidate('DUP'),
+    candidate('DUP'),
+    candidate('BLOCKED-2', { publishable: false }),
+  ], {
+    P2: 'P2',
+    P0: 'P0',
+    DUP: 'P1',
+  });
+
+  assert.deepEqual(rows.map((item) => [item.sku, item.priority, item.queueEligible]), [
+    ['P0', 'P0', true],
+    ['DUP', 'P1', true],
+    ['P2', 'P2', true],
+    ['BLOCKED', 'P4', false],
+    ['BLOCKED-2', 'P4', false],
+  ]);
 });
