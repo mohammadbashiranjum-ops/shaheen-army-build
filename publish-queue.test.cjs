@@ -1,5 +1,8 @@
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 const test = require('node:test');
+const vm = require('node:vm');
 const {
   DEFAULT_PRIORITY,
   normalizePriority,
@@ -95,4 +98,63 @@ test('displays eligible rows in execution order and blocked rows after them', ()
     ['BLOCKED', 'P4', false],
     ['BLOCKED-2', 'P4', false],
   ]);
+});
+
+test('re-renders and reorders the UI immediately after a priority change', async () => {
+  const html = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
+  const start = html.indexOf('function renderPublishQueue(items) {');
+  const end = html.indexOf('\n}\n\nasync function loadPublishPriorities()', start);
+  assert.ok(start >= 0 && end > start, 'priority queue renderer must exist in index.html');
+
+  const elements = new Map();
+  function createElement(tagName) {
+    return {
+      tagName,
+      children: [],
+      attributes: {},
+      listeners: {},
+      appendChild(child) { this.children.push(child); },
+      replaceChildren() { this.children = []; },
+      setAttribute(name, value) { this.attributes[name] = value; },
+      addEventListener(name, listener) { this.listeners[name] = listener; },
+    };
+  }
+
+  const root = createElement('div');
+  const status = createElement('div');
+  elements.set('priorityQueueList', root);
+  elements.set('publishQueueStatus', status);
+  const priorities = { A: 'P1', B: 'P2' };
+  const items = [candidate('A', { title: 'Alpha' }), candidate('B', { title: 'Beta' })];
+  const context = {
+    window: { PublishQueueLogic: require('./publish-queue.js') },
+    document: {
+      createElement,
+      getElementById(id) { return elements.get(id) || null; },
+    },
+    readPublishPriorities() { return { ...priorities }; },
+    savePublishPriority(sku, value) { priorities[sku] = value; },
+    currentPublishQueue: items,
+  };
+
+  const rendererSource = `${html.slice(start, end + 2)}; renderPublishQueue;`;
+  const renderPublishQueue = vm.runInNewContext(rendererSource, context);
+  context.renderPublishQueue = renderPublishQueue;
+  renderPublishQueue(items);
+  assert.deepEqual(root.children.map((row) => row.children[0].textContent.split(' | ')[0]), [
+    'P1',
+    'P2',
+  ]);
+
+  const rowA = root.children.find((row) => row.children[0].textContent.startsWith('P1 | A'));
+  assert.ok(rowA, 'P1 row should render first before the edit');
+  const selectA = rowA.children[1];
+  selectA.value = 'P4';
+  await selectA.listeners.change();
+
+  assert.deepEqual(root.children.map((row) => row.children[0].textContent.split(' | ')[0]), [
+    'P2',
+    'P4',
+  ]);
+  assert.match(status.textContent, /A: P4 saved/);
 });

@@ -289,7 +289,13 @@ function renderPublishQueue(items) {
     }
     select.value = logic.normalizePriority(priorities[item.sku]);
     select.disabled = !item.queueEligible;
-    select.addEventListener('change', () => savePublishPriority(item.sku, select.value));
+    select.addEventListener('change', () => {
+      const nextPriority = select.value;
+      savePublishPriority(item.sku, nextPriority);
+      renderPublishQueue(currentPublishQueue);
+      const queueStatus = document.getElementById('publishQueueStatus');
+      if (queueStatus) queueStatus.textContent += ` ${item.sku}: ${nextPriority} saved on this device.`;
+    });
     row.appendChild(select);
     root.appendChild(row);
   }
