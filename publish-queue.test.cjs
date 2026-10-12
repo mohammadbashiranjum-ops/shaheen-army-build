@@ -58,6 +58,23 @@ test('filters PUBLISHED, non-LISTING_READY, blocked, and photo-incomplete items'
   assert.deepEqual(ordered.map((item) => item.sku), ['READY']);
 });
 
+test('keeps a server-authorized item eligible when only one channel needs no retry', () => {
+  const ordered = sortPublishQueue([
+    candidate('PARTIAL-PUBLISHED', {
+      alreadyPublishedChannels: ['FACEBOOK_PAGE'],
+    }),
+    candidate('PARTIAL-RECONCILIATION', {
+      reconciliationChannels: ['FACEBOOK_PAGE'],
+    }),
+    candidate('FULLY-BLOCKED', { status: 'BLOCKED', publishable: false }),
+  ]);
+
+  assert.deepEqual(ordered.map((item) => item.sku), [
+    'PARTIAL-PUBLISHED',
+    'PARTIAL-RECONCILIATION',
+  ]);
+});
+
 test('defaults missing or invalid priority to P4 without assigning merit by guess', () => {
   assert.equal(DEFAULT_PRIORITY, 'P4');
   assert.equal(normalizePriority(undefined), 'P4');

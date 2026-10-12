@@ -354,7 +354,8 @@ async function publishAll() {
   if (r.ok && r.data) {
     const d = r.data;
     let out = '🚀 <b>PUBLISH RESULTS</b><br><br>';
-    out += 'Total: <b>' + d.total + '</b> | ✅ Published: <b>' + d.published + '</b> | ⚠️ Skipped: <b>' + d.skipped + '</b> | ❌ Failed: <b>' + d.failed + '</b><br><br>';
+    const partialCount = Number.isInteger(d.partial) ? d.partial : 0;
+    out += 'Total: <b>' + d.total + '</b> | ✅ Published: <b>' + d.published + '</b> | ◐ Partial: <b>' + partialCount + '</b> | ⚠️ Skipped: <b>' + d.skipped + '</b> | ❌ Failed: <b>' + d.failed + '</b><br><br>';
     (d.results || []).forEach((it) => {
       out += '<b>' + escapeHtml(it.sku) + '</b> — ' + escapeHtml(it.status);
       if (it.publications) {
@@ -363,6 +364,8 @@ async function publishAll() {
         if (it.publications.INSTAGRAM) out += '&nbsp;&nbsp;📷 IG: ' + escapeHtml(it.publications.INSTAGRAM.id);
       }
       if (it.alreadyPublishedChannels && it.alreadyPublishedChannels.length) out += ' — Already live: ' + escapeHtml(it.alreadyPublishedChannels.join(', '));
+      if (it.reconciliationChannels && it.reconciliationChannels.length) out += ' — Reconciliation required: ' + escapeHtml(it.reconciliationChannels.join(', '));
+      if (it.failedChannels && it.failedChannels.length) out += ' — Failed channels: ' + escapeHtml(it.failedChannels.join(', '));
       if (it.reason) out += ' (' + escapeHtml(it.reason) + ')';
       if (it.error) out += ' — ' + escapeHtml(it.error);
       out += '<br>';
