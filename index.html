@@ -27,6 +27,14 @@ body { background:#0a0a0a; color:#e0e0e0; font-family:Arial,sans-serif; margin:0
 .quick-actions { display:flex; gap:6px; margin-bottom:8px; overflow-x:auto; padding-bottom:4px; }
 .quick-actions button { padding:8px 12px; border-radius:8px; border:1px solid #2a2a4a; background:#1a1a2e; color:#ffd700; font-size:12px; white-space:nowrap; }
 .quick-actions button.publish { background:#0a3d0a; color:#b8ffb8; border-color:#1a5d1a; font-weight:bold; }
+.priority-panel { background:#1a1a1a; border:1px solid #2a2a4a; border-radius:10px; margin:0 0 8px; padding:10px; }
+.priority-panel.hidden { display:none; }
+.priority-panel h3 { margin:0 0 6px; color:#ffd700; font-size:14px; }
+.priority-note { color:#aaa; font-size:11px; margin:4px 0 8px; }
+.priority-row { display:grid; grid-template-columns:minmax(0,1fr) 76px; gap:8px; align-items:center; border-top:1px solid #2a2a2a; padding:8px 0; }
+.priority-row .priority-item { overflow-wrap:anywhere; font-size:12px; }
+.priority-row select { background:#000; color:#ffd700; border:1px solid #555; border-radius:6px; padding:7px; }
+.priority-refresh { background:#2a2a4a; color:#fff; border:1px solid #4a4a6a; border-radius:6px; padding:7px 10px; }
 .chat { background:#1a1a1a; padding:12px; border-radius:10px; margin-bottom:8px; height:calc(100vh - 300px); min-height:280px; overflow-y:auto; border:1px solid #2a2a2a; }
 .msg { margin:8px 0; padding:8px 12px; border-radius:10px; line-height:1.4; word-wrap:break-word; font-size:14px; }
 .msg-user { background:#0a3d0a; color:#b8ffb8; margin-left:20%; text-align:right; border:1px solid #1a5d1a; }
@@ -81,9 +89,18 @@ body { background:#0a0a0a; color:#e0e0e0; font-family:Arial,sans-serif; margin:0
 <button onclick="quick('Inventory ka data dikhao')">📦 Inventory</button>
 <button onclick="quick('Projects dikhao')">📁 Projects</button>
 <button onclick="quick('Tasks dikhao')">✅ Tasks</button>
+<button onclick="togglePriorityPanel()">🎯 Priority</button>
 <button onclick="publishAll()" class="publish">🚀 Publish All</button>
 <button onclick="quick('Motivate karo')">🔥 Booster</button>
 <button onclick="clearChat()">🗑️</button>
+</div>
+
+<div class="priority-panel hidden" id="priorityPanel">
+<h3>Listing priority — P0 → P4</h3>
+<p class="priority-note">Only server-verified LISTING_READY items can be selected. Priorities default to P4 and are saved on this device.</p>
+<div id="publishQueueStatus" class="priority-note">Open Priority to load the current queue.</div>
+<div id="priorityQueueList"></div>
+<button class="priority-refresh" onclick="loadPublishPriorities()">↻ Refresh queue</button>
 </div>
 
 <div class="chat" id="chat">
@@ -102,6 +119,7 @@ body { background:#0a0a0a; color:#e0e0e0; font-family:Arial,sans-serif; margin:0
 <button onclick="send()">🚀</button>
 </div>
 
+<script src="./publish-queue.js"></script>
 <script>
 const WHOS_URL = "https://whos-backend-production.up.railway.app";
 const WHOS_API = "/api/v1";
@@ -207,31 +225,156 @@ async function pilotDashboard() {
   }
 }
 
+const PUBLISH_PRIORITY_STORAGE_KEY = 'whos_publish_priorities_v1';
+let currentPublishQueue = [];
+
+function readPublishPriorities() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(PUBLISH_PRIORITY_STORAGE_KEY) || '{}');
+    return saved && typeof saved === 'object' && !Array.isArray(saved) ? saved : {};
+  } catch(e) {
+    return {};
+  }
+}
+
+function savePublishPriority(sku, value) {
+  const logic = window.PublishQueueLogic;
+  if (!logic || !logic.PRIORITIES.includes(value)) return;
+  const priorities = readPublishPriorities();
+  priorities[sku] = value;
+  localStorage.setItem(PUBLISH_PRIORITY_STORAGE_KEY, JSON.stringify(priorities));
+  const status = document.getElementById('publishQueueStatus');
+  if (status) status.textContent = `${sku}: ${value} saved on this device.`;
+}
+
+async function togglePriorityPanel() {
+  const panel = document.getElementById('priorityPanel');
+  panel.classList.toggle('hidden');
+  if (!panel.classList.contains('hidden')) await loadPublishPriorities();
+}
+
+function renderPublishQueue(items) {
+  const root = document.getElementById('priorityQueueList');
+  const status = document.getElementById('publishQueueStatus');
+  const logic = window.PublishQueueLogic;
+  root.replaceChildren();
+
+  const priorities = readPublishPriorities();
+  const displayItems = logic.sortPublishQueueForDisplay(items, priorities);
+  const eligibleCount = displayItems.filter((item) => item.queueEligible).length;
+  status.textContent = `${eligibleCount} eligible item(s), shown in publish priority order; PUBLISHED and blocked items are excluded from Publish All.`;
+  if (!items.length) {
+    root.textContent = 'No approved listing packets are in the queue.';
+    return;
+  }
+
+  for (const item of displayItems) {
+    const row = document.createElement('div');
+    row.className = 'priority-row';
+
+    const detail = document.createElement('div');
+    detail.className = 'priority-item';
+    const reason = item.reason ? ` — ${item.reason}` : '';
+    const priorityLabel = item.queueEligible ? `${item.priority} | ` : '';
+    detail.textContent = `${priorityLabel}${item.sku} — ${item.title} | ${item.status} | ${item.imageCount} image(s)${reason}`;
+    row.appendChild(detail);
+
+    const select = document.createElement('select');
+    select.setAttribute('aria-label', `Priority for ${item.sku}`);
+    for (const priority of logic.PRIORITIES) {
+      const option = document.createElement('option');
+      option.value = priority;
+      option.textContent = priority;
+      select.appendChild(option);
+    }
+    select.value = logic.normalizePriority(priorities[item.sku]);
+    select.disabled = !item.queueEligible;
+    select.addEventListener('change', () => {
+      const nextPriority = select.value;
+      savePublishPriority(item.sku, nextPriority);
+      renderPublishQueue(currentPublishQueue);
+      const queueStatus = document.getElementById('publishQueueStatus');
+      if (queueStatus) queueStatus.textContent += ` ${item.sku}: ${nextPriority} saved on this device.`;
+    });
+    row.appendChild(select);
+    root.appendChild(row);
+  }
+}
+
+async function loadPublishPriorities() {
+  if (!whosToken) {
+    const status = document.getElementById('publishQueueStatus');
+    if (status) status.textContent = 'WHOS login is required to read the protected queue.';
+    addMsg('err','❌ Pehle WHOS login karein (⚙️ Settings).');
+    return null;
+  }
+
+  const status = document.getElementById('publishQueueStatus');
+  if (status) status.textContent = 'Checking current listing and publication status…';
+  const r = await whosCall('/meta-publishing/publish-queue');
+  if (!r.ok || !r.data || !Array.isArray(r.data.items)) {
+    if (status) status.textContent = `Queue status unavailable (${r.status || r.error || 'unknown error'}). Publishing is blocked.`;
+    addMsg('err', '❌ Queue status unavailable; Publish All is blocked until status can be verified.');
+    return null;
+  }
+
+  currentPublishQueue = r.data.items;
+  renderPublishQueue(currentPublishQueue);
+  return r.data;
+}
+
 async function publishAll() {
   if (!whosToken) { addMsg('err','❌ Pehle WHOS login karein (⚙️ Settings).'); return; }
-  if (!confirm('3 approved items Facebook + Instagram par publish karein?')) return;
-  addMsg('sys','🚀 Publishing approved listings...');
+  addMsg('sys','🔎 Current status aur priority order check kar raha hoon...');
+  const queue = await loadPublishPriorities();
+  if (!queue) return;
+
+  const candidates = window.PublishQueueLogic.sortPublishQueue(
+    queue.items,
+    readPublishPriorities(),
+  );
+  if (!candidates.length) {
+    addMsg('sys','✅ Koi eligible unpublished LISTING_READY item nahi. PUBLISHED aur blocked items skip hain.');
+    return;
+  }
+
+  const orderedSkus = candidates.map((item) => item.sku);
+  const summary = candidates.map((item, index) => `${index + 1}. ${item.priority} ${item.sku} — ${item.title}`).join('\n');
+  const message = `Publish ${candidates.length} eligible item(s) to Facebook + Instagram in this order?\n\n${summary}\n\nAlready-published and blocked items are excluded. The server rechecks status before publishing.`;
+  if (!confirm(message)) {
+    addMsg('sys','Publication cancelled. No listing was sent.');
+    return;
+  }
+
+  addMsg('sys','🚀 Publishing priority-ordered approved listings...');
   const r = await whosCall('/meta-publishing/publish-approved', 'POST', {
-    channels: ['FACEBOOK_PAGE', 'INSTAGRAM']
+    skus: orderedSkus,
+    channels: ['FACEBOOK_PAGE', 'INSTAGRAM'],
   });
   if (r.ok && r.data) {
     const d = r.data;
     let out = '🚀 <b>PUBLISH RESULTS</b><br><br>';
-    out += 'Total: <b>' + d.total + '</b> | ✅ Published: <b>' + d.published + '</b> | ⚠️ Skipped: <b>' + d.skipped + '</b> | ❌ Failed: <b>' + d.failed + '</b><br><br>';
+    const partialCount = Number.isInteger(d.partial) ? d.partial : 0;
+    out += 'Total: <b>' + d.total + '</b> | ✅ Published: <b>' + d.published + '</b> | ◐ Partial: <b>' + partialCount + '</b> | ⚠️ Skipped: <b>' + d.skipped + '</b> | ❌ Failed: <b>' + d.failed + '</b><br><br>';
     (d.results || []).forEach((it) => {
-      out += '<b>' + it.sku + '</b> — ' + it.status;
+      out += '<b>' + escapeHtml(it.sku) + '</b> — ' + escapeHtml(it.status);
       if (it.publications) {
         out += '<br>&nbsp;&nbsp;';
-        if (it.publications.FACEBOOK_PAGE) out += '📘 FB: ' + it.publications.FACEBOOK_PAGE.id + '<br>';
-        if (it.publications.INSTAGRAM) out += '&nbsp;&nbsp;📷 IG: ' + it.publications.INSTAGRAM.id;
+        if (it.publications.FACEBOOK_PAGE) out += '📘 FB: ' + escapeHtml(it.publications.FACEBOOK_PAGE.id) + '<br>';
+        if (it.publications.INSTAGRAM) out += '&nbsp;&nbsp;📷 IG: ' + escapeHtml(it.publications.INSTAGRAM.id);
       }
-      if (it.reason) out += ' (' + it.reason + ')';
-      if (it.error) out += ' — ' + it.error;
+      if (it.alreadyPublishedChannels && it.alreadyPublishedChannels.length) out += ' — Already live: ' + escapeHtml(it.alreadyPublishedChannels.join(', '));
+      if (it.reconciliationChannels && it.reconciliationChannels.length) out += ' — Reconciliation required: ' + escapeHtml(it.reconciliationChannels.join(', '));
+      if (it.failedChannels && it.failedChannels.length) out += ' — Failed channels: ' + escapeHtml(it.failedChannels.join(', '));
+      if (it.reason) out += ' (' + escapeHtml(it.reason) + ')';
+      if (it.error) out += ' — ' + escapeHtml(it.error);
       out += '<br>';
     });
     addMsg('ai', out);
+    const refreshedQueue = await loadPublishPriorities();
+    if (refreshedQueue) renderPublishQueue(refreshedQueue.items);
   } else {
-    addMsg('err', '❌ Publish error: ' + (r.error || JSON.stringify(r.data) || r.status));
+    addMsg('err', '❌ Publish error: ' + escapeHtml(r.error || JSON.stringify(r.data) || r.status));
   }
 }
 
@@ -281,7 +424,7 @@ function addMsg(type, text, imgSrc) {
 }
 function clearChat() { document.getElementById('chat').innerHTML = '<div class="msg msg-sys">Cleared.</div>'; }
 function quick(text) { document.getElementById('msg').value = text; send(); }
-function escapeHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function escapeHtml(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 const BRAINS = {
   programmer: "Senior Programmer. Clean code, debug. Short Roman Urdu+English.",
