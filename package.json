@@ -1,1 +1,1 @@
-{ "name": "shaheen-army-build", "private": true, "scripts": { "test": "node --test --test-timeout=60000 tests/*.test.cjs" } }
+{ "name": "shaheen-army-build", "private": true, "scripts": { "test": "node --test --test-timeout=60000 tests/*.test.cjs" }, "devDependencies": { "playwright": "1.56.1" } }
