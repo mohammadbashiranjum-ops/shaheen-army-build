@@ -73,6 +73,11 @@ body { background:#0a0a0a; color:#e0e0e0; font-family:Arial,sans-serif; margin:0
 <button onclick="refreshLive()">🔄 Refresh</button>
 </div>
 
+<div class="card" id="pipeCard">
+<h3>📦 Inventory Pipeline (public catalog, read-only)</h3>
+<div id="pipeBody">⏳ ...</div>
+</div>
+
 <div class="card hidden" id="weekPanel">
 <h3>📅 Marketing Week</h3>
 <div id="weekBody"></div>
@@ -161,6 +166,18 @@ function renderLive(loading) {
   if (st.kind === 'STALE') h += '<br>⚠️ Abhi check fail; aakhri kamyab check ' + new Date(st.lastGoodAt).toLocaleTimeString() + ' (purana).';
   if (st.kind === 'ERROR') h += '<br>❌ Status maloom nahi' + (st.lastGoodAt ? ' (aakhri kamyab ' + new Date(st.lastGoodAt).toLocaleTimeString() + ')' : '') + '.';
   if (lastLive) h += '<br><small>Checked ' + new Date(lastLive.checkedAt).toLocaleTimeString() + '</small>';
+  el.innerHTML = h;
+  renderPipe(st);
+}
+function renderPipe(st) {
+  const el = document.getElementById('pipeBody');
+  const cat = lastLive && lastLive.catalog.ok ? lastLive : (st.kind === 'STALE' ? lastGood : null);
+  if (!cat) { el.textContent = '❓ Catalog maloom nahi (UNKNOWN).'; return; }
+  const sum = LiveWeek.pipelineSummary(cat.catalog.items);
+  let h = (cat === lastLive ? '' : '<b>⚠️ Purana data</b><br>') + 'Public items: <b>' + sum.total + '</b> — ' +
+    Object.keys(sum.byAvailability).map(k => L.escapeHtml(k) + ': ' + sum.byAvailability[k]).join(', ') + '<br>';
+  h += cat.catalog.items.map(i => '• ' + L.escapeHtml(i.sku || '?') + ' — ' + L.escapeHtml(i.title) + ' — ' + L.escapeHtml(i.currency + ' ' + i.price) + ' (' + L.escapeHtml(i.availability) + ')').join('<br>');
+  h += '<br><small>Facebook/Instagram publish status yahan nahi dikhta (public API mein nahi).</small>';
   el.innerHTML = h;
 }
 async function refreshLive() {
