@@ -30,3 +30,10 @@ test('content pack: no unconfirmed tested/working claim in post text', () => {
   const posts = pack.split('\n').filter(l => l.startsWith('>') && !/OWNER:/.test(l));
   posts.forEach(l => assert.doesNotMatch(l, /\b(tested|working|warranty|guarantee)\b/i, l));
 });
+
+test('CC-0023 drafts: only AUD 300, owner blanks present, no tested/working claim outside an OWNER-gated line', () => {
+  const t = fs.readFileSync(path.join(__dirname, '..', 'marketing', 'cc-0023-makita-hs7000-drafts.md'), 'utf8');
+  assert.match(t, /DRAFT ONLY/); assert.match(t, /\[OWNER:/);
+  [...t.matchAll(/AUD\s*(\d+)/g)].forEach(m => assert.strictEqual(m[1], '300'));
+  t.split('\n').filter(l => l.startsWith('>') && !/OWNER:/.test(l)).forEach(l => assert.doesNotMatch(l, /\b(tested|working|warranty|guarantee)\b/i, l));
+});
