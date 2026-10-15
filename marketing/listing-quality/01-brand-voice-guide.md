@@ -16,6 +16,7 @@ Draft only. Nothing here posts anything. Audience: Nauru buyers. Language: plain
 
 ## Never say (hard rules)
 1. **"Tested" / "working" / "fully functional"** unless the Owner tested that exact item and says so in writing. Source it: `[OWNER: tested by ____ on ____]`.
+   - Only exception: a supplier's test statement may be repeated as *"Seller-tested before purchase (supplier's statement; not re-tested by us)"*, and only when the Owner accepts it. Never shorten it to "tested" or "working".
 2. **Luxury or maker-prestige claims** ("genuine", "authentic", "original", "professional-grade", "premium brand") **without proof** (receipt, serial plate, photo). Brand name goes in only as printed on the item itself.
 3. **Warranty / guarantee / returns promises.** No "money back", no "guaranteed". If asked, the Owner answers by hand.
 4. **Invented specs** (power, size, speed, age, battery life). Only what is on the label in the photo or in the Owner's note.

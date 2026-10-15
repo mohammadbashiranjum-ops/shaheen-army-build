@@ -52,7 +52,7 @@ test('CC-0036 follow-up + Owner checklist: draft-only, gated, only approved pric
 test('listing-quality drafts: AUD-only prices gated to the Owner, no unsourced claims, 3-5 hashtags', () => {
   const dir = path.join(__dirname, '..', 'marketing', 'listing-quality');
   const files = fs.readdirSync(dir).filter(f => f.endsWith('.md')).sort();
-  assert.deepStrictEqual(files, ['01-brand-voice-guide.md', '02-caption-templates.md', '03-posting-times.md', '04-next-five-item-drafts.md']);
+  assert.deepStrictEqual(files, ['01-brand-voice-guide.md', '02-caption-templates.md', '03-posting-times.md', '04-next-five-item-drafts.md', '05-seven-day-plan-five-items.md']);
   const quoted = [];
   files.forEach(f => fs.readFileSync(path.join(dir, f), 'utf8').split('\n').forEach(l => { if (l.startsWith('>')) quoted.push(l); }));
   assert.ok(quoted.length > 20);
@@ -65,4 +65,16 @@ test('listing-quality drafts: AUD-only prices gated to the Owner, no unsourced c
   const times = fs.readFileSync(path.join(dir, '03-posting-times.md'), 'utf8');
   assert.match(times, /UTC\+12/); assert.match(times, /UNVERIFIED/); assert.match(times, /Actual post time/);
   assert.match(fs.readFileSync(path.join(dir, '04-next-five-item-drafts.md'), 'utf8'), /DRAFT ONLY/);
+});
+
+test('v2 drafts: sourced item names, no internal costs, test wording only as gated supplier statement', () => {
+  const dir = path.join(__dirname, '..', 'marketing', 'listing-quality');
+  const d = fs.readFileSync(path.join(dir, '04-next-five-item-drafts.md'), 'utf8');
+  ['Makita HS7000', 'Makita DBO180', 'Makita HS6600', 'Makita TD090D'].forEach(n => assert.ok(d.includes(n), n));
+  const all = fs.readdirSync(dir).map(f => fs.readFileSync(path.join(dir, f), 'utf8')).join('\n');
+  assert.doesNotMatch(all, /MIN\s*\/\s*MAX|landed|fully loaded|buy cost|\b130\.94\b|\b66\.25\b/i);
+  assert.doesNotMatch(all, /\bAUD\s*\d/);
+  d.split('\n').filter(l => /tested/i.test(l) && l.startsWith('>')).forEach(l => assert.match(l, /OWNER:/));
+  assert.match(d, /not re-tested by us/); assert.match(d, /supplier's statement/);
+  assert.match(fs.readFileSync(path.join(dir, '05-seven-day-plan-five-items.md'), 'utf8'), /UNVERIFIED/);
 });
