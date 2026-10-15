@@ -61,7 +61,7 @@
     { day: 'Mon', task: 'Naya listing post' },
     { day: 'Tue', task: 'Tip / behind-the-scenes reel' },
     { day: 'Wed', task: 'Customer FAQ story' },
-    { day: 'Thu', task: 'Before/after ya tested-working demo' },
+    { day: 'Thu', task: 'Before/after ya demo (sirf wahi jo Owner ne khud check kiya ho)' },
     { day: 'Fri', task: 'Weekend availability roundup' },
     { day: 'Sat', task: 'Community / local Nauru story' },
     { day: 'Sun', task: 'Rest + is hafte ke messages review' }

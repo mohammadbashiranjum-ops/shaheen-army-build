@@ -31,7 +31,7 @@ No other specs, prices, warranty or "tested" claims. If unsure, leave it out.
 > Q: Where are you? A: Nauru.
 > Q: How do I get it? A: Message us. We confirm pickup or delivery together.
 
-## Thu — Before/after or tested-working demo
+## Thu — Before/after or demo
 **Facebook + Instagram:**
 > [OWNER: post a demo ONLY for an item you have actually tested yourself. Do not write "tested" or "working" for CC-0036 or CC-0023 until you have.]
 > Draft caption: "Here is the [item] running. What you see is what you get."
