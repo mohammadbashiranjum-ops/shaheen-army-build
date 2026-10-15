@@ -25,7 +25,7 @@
 > Message us in Nauru to reserve.
 
 ## Instagram story (1 card)
-> New in: Makita HS7000
+> Just arrived: Makita HS7000
 > AUD 300
 > DM to reserve
 
