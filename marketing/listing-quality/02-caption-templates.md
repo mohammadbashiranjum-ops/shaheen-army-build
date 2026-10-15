@@ -35,7 +35,7 @@ Rules: one item per card; the item photo is the background; no extra text; no st
 ## D. Carousel order rules (Instagram/Facebook, 3–6 photos)
 1. **Slide 1 — hero:** the whole item, clean background, best light.
 2. **Slide 2 — included:** everything that comes with it, laid out together.
-3. **Slide 3 — label/model plate:** readable brand/model/serial (proves the brand claim).
+3. **Slide 3 — label/model plate:** readable brand and model (proves the brand claim). Cover or crop out any serial number, ID or personal detail.
 4. **Slide 4 — condition:** honest close-up of marks and wear (shown, not hidden).
 5. **Slide 5 — scale/in-hand** (optional): shows size.
 6. **Slide 6 — price card** (optional): `AUD {price} · Nauru pickup/delivery`.

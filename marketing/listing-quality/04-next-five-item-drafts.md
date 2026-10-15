@@ -120,7 +120,7 @@ Source: condition USED / SCUFFED; included TD090D body only; not included batter
 
 **Facebook**
 > Makita TD090D impact driver (bare tool) — just arrived.
-> Used and worn, as shown in the photos.
+> Used, scuffed, as shown in the photos.
 > Included: TD090D body only. Not included: battery, charger and case.
 > [OWNER: optional — only if you accept the supplier's statement: "Seller-tested before purchase (supplier's statement; not re-tested by us)."]
 > Price: AUD [OWNER: final price]
@@ -129,7 +129,7 @@ Source: condition USED / SCUFFED; included TD090D body only; not included batter
 
 **Instagram**
 > Makita TD090D impact driver (bare tool).
-> Used and worn, as pictured.
+> Used, scuffed, as pictured.
 > Included: TD090D body only · Not included: battery, charger and case
 > AUD [OWNER: final price]
 > DM us to arrange pickup or delivery in Nauru.

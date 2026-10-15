@@ -52,7 +52,7 @@ test('CC-0036 follow-up + Owner checklist: draft-only, gated, only approved pric
 test('listing-quality drafts: AUD-only prices gated to the Owner, no unsourced claims, 3-5 hashtags', () => {
   const dir = path.join(__dirname, '..', 'marketing', 'listing-quality');
   const files = fs.readdirSync(dir).filter(f => f.endsWith('.md')).sort();
-  assert.deepStrictEqual(files, ['01-brand-voice-guide.md', '02-caption-templates.md', '03-posting-times.md', '04-next-five-item-drafts.md', '05-seven-day-plan-five-items.md']);
+  assert.deepStrictEqual(files, ['01-brand-voice-guide.md', '02-caption-templates.md', '03-posting-times.md', '04-next-five-item-drafts.md', '05-seven-day-plan-five-items.md', '06-photo-shot-list.md']);
   const quoted = [];
   files.forEach(f => fs.readFileSync(path.join(dir, f), 'utf8').split('\n').forEach(l => { if (l.startsWith('>')) quoted.push(l); }));
   assert.ok(quoted.length > 20);
@@ -77,4 +77,16 @@ test('v2 drafts: sourced item names, no internal costs, test wording only as gat
   d.split('\n').filter(l => /tested/i.test(l) && l.startsWith('>')).forEach(l => assert.match(l, /OWNER:/));
   assert.match(d, /not re-tested by us/); assert.match(d, /supplier's statement/);
   assert.match(fs.readFileSync(path.join(dir, '05-seven-day-plan-five-items.md'), 'utf8'), /UNVERIFIED/);
+});
+
+test('CC-0022 wording matches source (scuffed) and shot list carries the photo spec and privacy rules', () => {
+  const dir = path.join(__dirname, '..', 'marketing', 'listing-quality');
+  const d = fs.readFileSync(path.join(dir, '04-next-five-item-drafts.md'), 'utf8');
+  const c22 = d.slice(d.indexOf('## CC-0022'), d.indexOf('## Owner info still needed'));
+  assert.match(c22, /Used, scuffed/); assert.doesNotMatch(c22, /Used and worn/);
+  const l = fs.readFileSync(path.join(dir, '06-photo-shot-list.md'), 'utf8');
+  ['CC-0022', 'CC-0024', 'CC-0025', 'CC-0034'].forEach(k => assert.ok(l.includes('### ' + k), k));
+  assert.match(l, /4:5/); assert.match(l, /1080/); assert.match(l, /JPEG/); assert.match(l, /3 to 6 photos/);
+  assert.match(l, /No people/); assert.match(l, /No serial numbers/); assert.match(l, /first image sets the carousel ratio/);
+  assert.doesNotMatch(fs.readFileSync(path.join(dir, '02-caption-templates.md'), 'utf8'), /readable brand\/model\/serial/);
 });
