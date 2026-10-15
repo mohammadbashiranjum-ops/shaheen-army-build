@@ -27,8 +27,23 @@
     return {
       checkedAt: nowMs,
       health: healthOk ? { ok: true, commit: String(h.data.commit || '').slice(0, 7), uptimeSeconds: h.data.uptimeSeconds } : { ok: false, detail: h.detail || 'bad response' },
-      catalog: catOk ? { ok: true, count: c.data.length } : { ok: false, detail: c.detail || 'bad response' }
+      catalog: catOk ? { ok: true, count: c.data.length, items: summarizeItems(c.data) } : { ok: false, detail: c.detail || 'bad response' }
     };
+  }
+
+  // Only the fields the card shows; everything else from the API is dropped.
+  function summarizeItems(list) {
+    return list.map(function (x) {
+      var inv = (x && x.inventoryItem) || {};
+      return { sku: String(inv.sku || ''), title: String((x && x.title) || ''), price: x && x.publicPrice != null ? String(x.publicPrice) : '', currency: String((x && x.currencyCode) || ''), availability: String((x && x.availability) || '') };
+    });
+  }
+
+  // Read-only pipeline view of the PUBLIC catalog only. Facebook/Instagram status is not in this API.
+  function pipelineSummary(items) {
+    var by = {};
+    (items || []).forEach(function (i) { by[i.availability || 'UNKNOWN'] = (by[i.availability || 'UNKNOWN'] || 0) + 1; });
+    return { total: (items || []).length, byAvailability: by };
   }
 
   // LIVE only when that check succeeded just now. A failed check never claims LIVE.
@@ -68,7 +83,7 @@
     try { storage.setItem(key, JSON.stringify(checks)); return true; } catch (e) { return false; }
   }
 
-  var api = { BASE: BASE, STALE_MS: STALE_MS, checkLive: checkLive, cardState: cardState, label: label,
+  var api = { BASE: BASE, STALE_MS: STALE_MS, checkLive: checkLive, cardState: cardState, label: label, summarizeItems: summarizeItems, pipelineSummary: pipelineSummary,
     MARKETING_WEEK: MARKETING_WEEK, weekKey: weekKey, loadChecks: loadChecks, saveChecks: saveChecks };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.LiveWeek = api;
 })(typeof self !== 'undefined' ? self : this);
