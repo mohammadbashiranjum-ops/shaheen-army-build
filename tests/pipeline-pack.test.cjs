@@ -48,3 +48,21 @@ test('CC-0036 follow-up + Owner checklist: draft-only, gated, only approved pric
   assert.match(c, /Drafts only/); assert.match(c, /read-back/);
   [...c.matchAll(/AUD\s*(\d+)/g)].forEach(m => assert.ok(['350', '300'].includes(m[1])));
 });
+
+test('listing-quality drafts: AUD-only prices gated to the Owner, no unsourced claims, 3-5 hashtags', () => {
+  const dir = path.join(__dirname, '..', 'marketing', 'listing-quality');
+  const files = fs.readdirSync(dir).filter(f => f.endsWith('.md')).sort();
+  assert.deepStrictEqual(files, ['01-brand-voice-guide.md', '02-caption-templates.md', '03-posting-times.md', '04-next-five-item-drafts.md']);
+  const quoted = [];
+  files.forEach(f => fs.readFileSync(path.join(dir, f), 'utf8').split('\n').forEach(l => { if (l.startsWith('>')) quoted.push(l); }));
+  assert.ok(quoted.length > 20);
+  quoted.filter(l => !/OWNER:/.test(l)).forEach(l => {
+    assert.doesNotMatch(l, /\b(tested|working|warranty|guarantee|genuine|authentic|original|professional-grade|premium brand)\b/i, l);
+    assert.doesNotMatch(l, /\b(AUD|\$)\s*\d/, 'price must be Owner-gated: ' + l);
+    const tags = l.match(/#\w+/g); if (tags) assert.ok(tags.length >= 3 && tags.length <= 5, 'hashtags 3-5: ' + l);
+  });
+  quoted.forEach(l => assert.doesNotMatch(l, /\b(USD|NZD|EUR)\b/));
+  const times = fs.readFileSync(path.join(dir, '03-posting-times.md'), 'utf8');
+  assert.match(times, /UTC\+12/); assert.match(times, /UNVERIFIED/); assert.match(times, /Actual post time/);
+  assert.match(fs.readFileSync(path.join(dir, '04-next-five-item-drafts.md'), 'utf8'), /DRAFT ONLY/);
+});
