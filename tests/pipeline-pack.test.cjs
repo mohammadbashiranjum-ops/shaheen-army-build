@@ -48,3 +48,45 @@ test('CC-0036 follow-up + Owner checklist: draft-only, gated, only approved pric
   assert.match(c, /Drafts only/); assert.match(c, /read-back/);
   [...c.matchAll(/AUD\s*(\d+)/g)].forEach(m => assert.ok(['350', '300'].includes(m[1])));
 });
+
+test('listing-quality drafts: AUD-only prices gated to the Owner, no unsourced claims, 3-5 hashtags', () => {
+  const dir = path.join(__dirname, '..', 'marketing', 'listing-quality');
+  const files = fs.readdirSync(dir).filter(f => f.endsWith('.md')).sort();
+  assert.deepStrictEqual(files, ['01-brand-voice-guide.md', '02-caption-templates.md', '03-posting-times.md', '04-next-five-item-drafts.md', '05-seven-day-plan-five-items.md', '06-photo-shot-list.md']);
+  const quoted = [];
+  files.forEach(f => fs.readFileSync(path.join(dir, f), 'utf8').split('\n').forEach(l => { if (l.startsWith('>')) quoted.push(l); }));
+  assert.ok(quoted.length > 20);
+  quoted.filter(l => !/OWNER:/.test(l)).forEach(l => {
+    assert.doesNotMatch(l, /\b(tested|working|warranty|guarantee|genuine|authentic|original|professional-grade|premium brand)\b/i, l);
+    assert.doesNotMatch(l, /\b(AUD|\$)\s*\d/, 'price must be Owner-gated: ' + l);
+    const tags = l.match(/#\w+/g); if (tags) assert.ok(tags.length >= 3 && tags.length <= 5, 'hashtags 3-5: ' + l);
+  });
+  quoted.forEach(l => assert.doesNotMatch(l, /\b(USD|NZD|EUR)\b/));
+  const times = fs.readFileSync(path.join(dir, '03-posting-times.md'), 'utf8');
+  assert.match(times, /UTC\+12/); assert.match(times, /UNVERIFIED/); assert.match(times, /Actual post time/);
+  assert.match(fs.readFileSync(path.join(dir, '04-next-five-item-drafts.md'), 'utf8'), /DRAFT ONLY/);
+});
+
+test('v2 drafts: sourced item names, no internal costs, test wording only as gated supplier statement', () => {
+  const dir = path.join(__dirname, '..', 'marketing', 'listing-quality');
+  const d = fs.readFileSync(path.join(dir, '04-next-five-item-drafts.md'), 'utf8');
+  ['Makita HS7000', 'Makita DBO180', 'Makita HS6600', 'Makita TD090D'].forEach(n => assert.ok(d.includes(n), n));
+  const all = fs.readdirSync(dir).map(f => fs.readFileSync(path.join(dir, f), 'utf8')).join('\n');
+  assert.doesNotMatch(all, /MIN\s*\/\s*MAX|landed|fully loaded|buy cost|\b130\.94\b|\b66\.25\b/i);
+  assert.doesNotMatch(d + fs.readFileSync(path.join(dir, '05-seven-day-plan-five-items.md'), 'utf8'), /\bAUD\s?\d{2,}/);
+  d.split('\n').filter(l => /tested/i.test(l) && l.startsWith('>')).forEach(l => assert.match(l, /OWNER:/));
+  assert.match(d, /not re-tested by us/); assert.match(d, /supplier's statement/);
+  assert.match(fs.readFileSync(path.join(dir, '05-seven-day-plan-five-items.md'), 'utf8'), /UNVERIFIED/);
+});
+
+test('CC-0022 wording matches source (scuffed) and shot list carries the photo spec and privacy rules', () => {
+  const dir = path.join(__dirname, '..', 'marketing', 'listing-quality');
+  const d = fs.readFileSync(path.join(dir, '04-next-five-item-drafts.md'), 'utf8');
+  const c22 = d.slice(d.indexOf('## CC-0022'), d.indexOf('## Owner info still needed'));
+  assert.match(c22, /Used, scuffed/); assert.doesNotMatch(c22, /Used and worn/);
+  const l = fs.readFileSync(path.join(dir, '06-photo-shot-list.md'), 'utf8');
+  ['CC-0022', 'CC-0024', 'CC-0025', 'CC-0034'].forEach(k => assert.ok(l.includes('### ' + k), k));
+  assert.match(l, /4:5/); assert.match(l, /1080/); assert.match(l, /JPEG/); assert.match(l, /3 to 6 photos/);
+  assert.match(l, /No people/); assert.match(l, /No serial numbers/); assert.match(l, /first image sets the carousel ratio/);
+  assert.doesNotMatch(fs.readFileSync(path.join(dir, '02-caption-templates.md'), 'utf8'), /readable brand\/model\/serial/);
+});
