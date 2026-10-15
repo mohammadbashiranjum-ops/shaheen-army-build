@@ -37,3 +37,14 @@ test('CC-0023 drafts: only AUD 300, owner blanks present, no tested/working clai
   [...t.matchAll(/AUD\s*(\d+)/g)].forEach(m => assert.strictEqual(m[1], '300'));
   t.split('\n').filter(l => l.startsWith('>') && !/OWNER:/.test(l)).forEach(l => assert.doesNotMatch(l, /\b(tested|working|warranty|guarantee)\b/i, l));
 });
+
+test('CC-0036 follow-up + Owner checklist: draft-only, gated, only approved price', () => {
+  const dir = path.join(__dirname, '..', 'marketing');
+  const f = fs.readFileSync(path.join(dir, 'cc-0036-instagram-live-followup-draft.md'), 'utf8');
+  assert.match(f, /DRAFT ONLY/); assert.match(f, /read back/);
+  [...f.matchAll(/AUD\s*(\d+)/g)].forEach(m => assert.strictEqual(m[1], '350'));
+  f.split('\n').filter(l => l.startsWith('>') && !/OWNER:/.test(l)).forEach(l => assert.doesNotMatch(l, /\b(tested|working|warranty|guarantee)\b/i, l));
+  const c = fs.readFileSync(path.join(dir, 'owner-weekly-checklist.md'), 'utf8');
+  assert.match(c, /Drafts only/); assert.match(c, /read-back/);
+  [...c.matchAll(/AUD\s*(\d+)/g)].forEach(m => assert.ok(['350', '300'].includes(m[1])));
+});
