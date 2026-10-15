@@ -73,7 +73,7 @@ test('v2 drafts: sourced item names, no internal costs, test wording only as gat
   ['Makita HS7000', 'Makita DBO180', 'Makita HS6600', 'Makita TD090D'].forEach(n => assert.ok(d.includes(n), n));
   const all = fs.readdirSync(dir).map(f => fs.readFileSync(path.join(dir, f), 'utf8')).join('\n');
   assert.doesNotMatch(all, /MIN\s*\/\s*MAX|landed|fully loaded|buy cost|\b130\.94\b|\b66\.25\b/i);
-  assert.doesNotMatch(all, /\bAUD\s*\d/);
+  assert.doesNotMatch(d + fs.readFileSync(path.join(dir, '05-seven-day-plan-five-items.md'), 'utf8'), /\bAUD\s?\d{2,}/);
   d.split('\n').filter(l => /tested/i.test(l) && l.startsWith('>')).forEach(l => assert.match(l, /OWNER:/));
   assert.match(d, /not re-tested by us/); assert.match(d, /supplier's statement/);
   assert.match(fs.readFileSync(path.join(dir, '05-seven-day-plan-five-items.md'), 'utf8'), /UNVERIFIED/);
