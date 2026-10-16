@@ -282,3 +282,22 @@ test('Owner kaam shows copy items; PR board is GET-only and shows CI/review', as
   assert.ok(calls.every(c => c.startsWith('GET ')));
   await browser.close();
 });
+
+test('PR board escapes external number and short SHA before HTML insertion', async () => {
+  const number = '<img data-xss="number" src=x onerror="window.__xss=1">';
+  const shortSha = '<img x>';
+  const { browser, page, calls } = await setup((route, r, u) =>
+    /\/pulls\?/.test(u) ? json(route, 200, [{ number, title: 'Safe PR title', draft: false, head: { sha: shortSha } }]) :
+    /check-runs/.test(u) ? json(route, 200, { check_runs: [] }) :
+    /reviews/.test(u) ? json(route, 200, []) : json(route, 404, {}));
+  await page.evaluate(() => { window.__xss = 0; });
+  await page.click('text=PR Board');
+  await page.waitForSelector('text=Safe PR title');
+  assert.strictEqual(await page.locator('#chat img').count(), 0);
+  assert.strictEqual(await page.evaluate(() => window.__xss), 0);
+  const text = await page.textContent('#chat');
+  assert.ok(text.includes(number));
+  assert.ok(text.includes(shortSha));
+  assert.ok(calls.every(c => c.startsWith('GET ')));
+  await browser.close();
+});

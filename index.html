@@ -388,7 +388,7 @@ async function showPrBoard() {
   if (r.error) { addMsg('err', escapeHtml(r.error)); return; }
   if (!r.prs.length) { addMsg('ai','Koi open PR nahi.'); return; }
   addMsg('ai','<small>🦅 '+L.BACKEND_REPO+'</small>' + r.prs.map(p =>
-    '#'+p.number+' '+escapeHtml(p.title)+(p.draft?' (draft)':'')+'<br>&nbsp;&nbsp;'+p.sha+' • CI: <b>'+escapeHtml(p.ci)+'</b> • Review: <b>'+escapeHtml(p.review)+'</b>').join('<br><br>'));
+    '#'+escapeHtml(p.number)+' '+escapeHtml(p.title)+(p.draft?' (draft)':'')+'<br>&nbsp;&nbsp;'+escapeHtml(p.sha)+' • CI: <b>'+escapeHtml(p.ci)+'</b> • Review: <b>'+escapeHtml(p.review)+'</b>').join('<br><br>'));
 }
 
 function showOwnerKaam() {
