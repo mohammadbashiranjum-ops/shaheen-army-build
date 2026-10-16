@@ -22,6 +22,8 @@ body { background:#0a0a0a; color:#e0e0e0; font-family:Arial,sans-serif; margin:0
 .settings-panel h3 { margin:0 0 8px 0; font-size:14px; color:#ffd700; }
 .box { background:#0f0f0f; padding:8px; border-radius:8px; margin-bottom:6px; border:1px solid #2a2a2a; display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
 .box input { flex:1; padding:10px; border-radius:8px; border:1px solid #333; background:#000; color:#fff; font-size:14px; min-width:100px; }
+.box input[type="checkbox"] { flex:0 0 18px; width:18px; height:18px; min-width:18px; padding:0; accent-color:#0a8; }
+.box label.stay-option { display:flex; align-items:center; gap:8px; width:100%; color:#ccc; font-size:12px; cursor:pointer; }
 .box button { padding:10px 16px; border-radius:8px; border:none; background:#f80; color:#000; font-weight:bold; font-size:14px; }
 .box button.green { background:#0a8; color:#fff; }
 .box button.red { background:#c33; color:#fff; }
@@ -63,9 +65,13 @@ body { background:#0a0a0a; color:#e0e0e0; font-family:Arial,sans-serif; margin:0
 <div class="settings-panel hidden" id="settingsPanel">
 <h3>⚙️ Settings</h3>
 
+<div class="box stay-option-box">
+<label class="stay-option" for="whosStayLoggedIn"><input id="whosStayLoggedIn" type="checkbox" onchange="setStayLoggedIn(this)">Stay logged in on this trusted device (localStorage token is readable by this site's scripts)</label>
+</div>
+
 <div class="box" id="whosLoginBox">
 <input id="whosEmail" type="text" placeholder="WHOS Email or Username" autocomplete="username">
-<input id="whosPass" type="password" placeholder="WHOS Password" autocomplete="current-password">
+<input id="whosPass" type="password" placeholder="WHOS Password" autocomplete="off">
 <button onclick="whosLogin()" class="green">Login</button>
 </div>
 
@@ -118,18 +124,86 @@ body { background:#0a0a0a; color:#e0e0e0; font-family:Arial,sans-serif; margin:0
 <script>
 const WHOS_URL = "https://whos-backend-production.up.railway.app";
 const WHOS_API = "/api/v1";
+const WHOS_TOKEN_STORAGE_KEY = 'shaheen_army_whos_access_token_v1';
+const WHOS_STAY_LOGGED_IN_KEY = 'shaheen_army_stay_logged_in_v1';
 
-// Secrets (WHOS token, Groq key, GitHub token) live in memory only: gone on reload/close.
+// WHOS access token is in memory plus the selected Web Storage area; passwords and optional API keys stay memory-only.
 let whosToken = "";
 let whosEmailSaved = "";
 let key = "";
 let ghToken = "";
 let expiryTimer = null;
 let pendingPhoto = null;
+let stayLoggedIn = false;
+let sessionNoticeShown = false;
 const L = ShaheenLib;
 
 function toggleSettings() {
   document.getElementById('settingsPanel').classList.toggle('hidden');
+}
+
+function readStoredWhosToken() {
+  try {
+    return (stayLoggedIn ? localStorage : sessionStorage).getItem(WHOS_TOKEN_STORAGE_KEY) || '';
+  } catch (e) {
+    return '';
+  }
+}
+
+function persistWhosToken(token) {
+  try {
+    const selectedStorage = stayLoggedIn ? localStorage : sessionStorage;
+    const otherStorage = stayLoggedIn ? sessionStorage : localStorage;
+    if (stayLoggedIn) localStorage.setItem(WHOS_STAY_LOGGED_IN_KEY, '1');
+    else localStorage.removeItem(WHOS_STAY_LOGGED_IN_KEY);
+    selectedStorage.setItem(WHOS_TOKEN_STORAGE_KEY, token);
+    otherStorage.removeItem(WHOS_TOKEN_STORAGE_KEY);
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+function clearStoredWhosToken() {
+  try { localStorage.removeItem(WHOS_TOKEN_STORAGE_KEY); } catch (e) {}
+  try { sessionStorage.removeItem(WHOS_TOKEN_STORAGE_KEY); } catch (e) {}
+}
+
+function initializeSessionPreference() {
+  try {
+    stayLoggedIn = localStorage.getItem(WHOS_STAY_LOGGED_IN_KEY) === '1';
+  } catch (e) {
+    stayLoggedIn = false;
+  }
+  const checkbox = document.getElementById('whosStayLoggedIn');
+  if (checkbox) checkbox.checked = stayLoggedIn;
+}
+
+function setStayLoggedIn(checkbox) {
+  const previous = stayLoggedIn;
+  const next = checkbox.checked;
+  try {
+    const sourceStorage = previous ? localStorage : sessionStorage;
+    const targetStorage = next ? localStorage : sessionStorage;
+    if (whosToken) targetStorage.setItem(WHOS_TOKEN_STORAGE_KEY, whosToken);
+    if (next) localStorage.setItem(WHOS_STAY_LOGGED_IN_KEY, '1');
+    else localStorage.removeItem(WHOS_STAY_LOGGED_IN_KEY);
+    if (whosToken && previous !== next) sourceStorage.removeItem(WHOS_TOKEN_STORAGE_KEY);
+    stayLoggedIn = next;
+    addMsg('sys', next ? 'Stay logged in enabled on this device.' : 'Stay logged in disabled; the token is limited to this tab session.');
+  } catch (e) {
+    if (whosToken && previous !== next) {
+      try { (previous ? localStorage : sessionStorage).setItem(WHOS_TOKEN_STORAGE_KEY, whosToken); } catch (restoreError) {}
+      try { (next ? localStorage : sessionStorage).removeItem(WHOS_TOKEN_STORAGE_KEY); } catch (removeError) {}
+    }
+    try {
+      if (previous) localStorage.setItem(WHOS_STAY_LOGGED_IN_KEY, '1');
+      else localStorage.removeItem(WHOS_STAY_LOGGED_IN_KEY);
+    } catch (restorePreferenceError) {}
+    stayLoggedIn = previous;
+    checkbox.checked = previous;
+    addMsg('err', 'Browser session storage could not be changed; the previous mode remains active.');
+  }
 }
 
 async function whosLogin() {
@@ -149,10 +223,13 @@ async function whosLogin() {
     if (d && (d.accessToken || d.access_token || d.token)) {
       whosToken = d.accessToken || d.access_token || d.token;
       whosEmailSaved = email;
+      const tokenStored = persistWhosToken(whosToken);
       document.getElementById('whosPass').value = '';
       showLoggedIn();
       armExpiry();
-      addMsg('ai','✅ WHOS login successful! Token sirf is page ki memory mein hai; reload par dobara login hoga.');
+      addMsg('ai', tokenStored
+        ? '✅ WHOS login successful! Stay logged in controls whether the token survives browser close.'
+        : '✅ WHOS login successful, but browser storage was unavailable; this session will not survive reload.');
     } else {
       addMsg('err', escapeHtml(L.describeError('Login', { status: r.status, data: d })));
     }
@@ -168,13 +245,81 @@ function showLoggedIn() {
   const st = document.getElementById('whosStatus');
   st.className = 'status status-ok';
   st.textContent = '✅ WHOS Logged In';
+  sessionNoticeShown = false;
 }
 
-function armExpiry() {
+function showSessionExpired() {
+  clearTimeout(expiryTimer);
+  expiryTimer = null;
+  document.getElementById('whosLoginBox').classList.remove('hidden');
+  document.getElementById('whosInfoBox').classList.remove('hidden');
+  document.getElementById('whosUser').textContent = whosEmailSaved || 'Saved WHOS session';
+  const st = document.getElementById('whosStatus');
+  st.className = 'status status-warn';
+  st.textContent = 'Session expired. Please log in again.';
+  if (!sessionNoticeShown) {
+    addMsg('err', 'Session expired. Please log in again.');
+    sessionNoticeShown = true;
+  }
+}
+
+function showSessionUnavailable() {
+  document.getElementById('whosLoginBox').classList.remove('hidden');
+  document.getElementById('whosInfoBox').classList.remove('hidden');
+  document.getElementById('whosUser').textContent = whosEmailSaved || 'Saved WHOS session';
+  const st = document.getElementById('whosStatus');
+  st.className = 'status status-warn';
+  st.textContent = 'Could not verify the WHOS session. Check the connection and try again.';
+  if (!sessionNoticeShown) {
+    addMsg('err', 'Could not verify the WHOS session. Check the connection and try again.');
+    sessionNoticeShown = true;
+  }
+}
+
+async function checkWhosSession(fromTimer = false, fromStartup = false) {
+  if (!whosToken) return null;
+  const token = whosToken;
+  const result = await L.request(fetch, WHOS_URL + WHOS_API + '/auth/me', token, { method: 'GET' });
+  if (whosToken !== token) return null;
+  if (result.ok) {
+    if (result.data && typeof result.data.username === 'string') whosEmailSaved = result.data.username;
+    showLoggedIn();
+    if (fromTimer) {
+      const exp = L.tokenExpiryMs(token);
+      const remaining = exp ? exp - Date.now() : 0;
+      armExpiry(remaining > 1000 ? remaining : 60000);
+    } else {
+      armExpiry();
+      if (fromStartup) addMsg('sys', 'Saved WHOS session restored and verified.');
+    }
+    return true;
+  }
+  if (result.status === 401) {
+    showSessionExpired();
+    return false;
+  }
+  showSessionUnavailable();
+  if (fromTimer || fromStartup) armExpiry(60000);
+  return null;
+}
+
+function armExpiry(delayMs) {
   clearTimeout(expiryTimer);
   const exp = L.tokenExpiryMs(whosToken);
   if (!exp) return;
-  expiryTimer = setTimeout(() => { addMsg('err','⏱️ Token expire ho gaya. Dobara login karein.'); doLogout(); }, Math.min(Math.max(exp - Date.now(), 0), 2147483647));
+  const delay = Number.isFinite(delayMs) ? Math.max(delayMs, 0) : Math.max(exp - Date.now(), 0);
+  expiryTimer = setTimeout(() => { void checkWhosSession(true); }, Math.min(delay, 2147483647));
+}
+
+async function initializeSavedSession() {
+  initializeSessionPreference();
+  const storedToken = readStoredWhosToken();
+  if (!storedToken) return;
+  whosToken = storedToken;
+  const st = document.getElementById('whosStatus');
+  st.className = 'status status-warn';
+  st.textContent = 'Checking saved WHOS session…';
+  await checkWhosSession(false, true);
 }
 
 function whosLogout() {
@@ -184,9 +329,18 @@ function whosLogout() {
 
 function doLogout() {
   clearTimeout(expiryTimer);
-  const old = whosToken;
+  const old = whosToken || readStoredWhosToken();
   whosToken = "";
-  if (old) L.request(fetch, WHOS_URL + WHOS_API + '/auth/logout', old, { method: 'POST' }); // revoke session, best effort
+  whosEmailSaved = "";
+  document.getElementById('whosPass').value = '';
+  document.getElementById('whosUser').textContent = '-';
+  clearStoredWhosToken();
+  try { localStorage.removeItem(WHOS_STAY_LOGGED_IN_KEY); } catch (e) {}
+  stayLoggedIn = false;
+  const stayCheckbox = document.getElementById('whosStayLoggedIn');
+  if (stayCheckbox) stayCheckbox.checked = false;
+  sessionNoticeShown = false;
+  if (old) void L.request(fetch, WHOS_URL + WHOS_API + '/auth/logout', old, { method: 'POST' }); // revoke session, best effort
   document.getElementById('whosInfoBox').classList.add('hidden');
   document.getElementById('whosLoginBox').classList.remove('hidden');
   document.getElementById('whosStatus').className = 'status status-err';
@@ -199,7 +353,7 @@ async function whosCall(path, method = "GET", body = null) {
   const opts = { method };
   if (body) { opts.body = JSON.stringify(body); opts.headers = { "Content-Type": "application/json" }; }
   const r = await L.request(fetch, WHOS_URL + WHOS_API + path, whosToken, opts);
-  if (r.status === 401) { addMsg('err','❌ WHOS token expire. Dobara login karein.'); doLogout(); }
+  if (r.status === 401) showSessionExpired();
   return r;
 }
 
@@ -210,13 +364,13 @@ async function pilotDashboard() {
   if (r.ok && r.data) {
     const d = r.data;
     let out = '📊 <b>INVENTORY DASHBOARD</b><br><br>';
-    out += '📦 Total: <b>' + d.total + '</b> | ✅ Actionable: <b>' + d.actionable + '</b><br><br>';
+    out += '📦 Total: <b>' + escapeHtml(d.total) + '</b> | ✅ Actionable: <b>' + escapeHtml(d.actionable) + '</b><br><br>';
     for (const [status, count] of Object.entries(d.byStatus || {})) {
-      out += '• ' + status + ': <b>' + count + '</b><br>';
+      out += '• ' + escapeHtml(status) + ': <b>' + escapeHtml(count) + '</b><br>';
     }
     out += '<br><b>Top 10:</b><br>';
     (d.items || []).slice(0, 10).forEach((it, i) => {
-      out += (i+1) + '. ' + it.sku + ' — ' + it.item + '<br>';
+      out += (i+1) + '. ' + escapeHtml(it.sku) + ' — ' + escapeHtml(it.item) + '<br>';
     });
     addMsg('ai', out);
   } else {
@@ -254,7 +408,7 @@ async function showSpend() {
   addMsg('sys','💰 Kharcha (read-only)...');
   const r = await L.loadSpend(fetch, ghToken, L.BACKEND_REPO.split('/')[0]);
   if (r.error) { addMsg('err', escapeHtml(r.error)); return; }
-  addMsg('ai','GitHub Actions is mahine: <b>$'+r.actionsNetUsd+'</b> ('+r.lines+' lines)<br>Railway: API se abhi safe nahi — dashboard par dekhein.');
+  addMsg('ai','GitHub Actions is mahine: <b>$'+escapeHtml(r.actionsNetUsd)+'</b> ('+escapeHtml(r.lines)+' lines)<br>Railway: API se abhi safe nahi — dashboard par dekhein.');
 }
 
 function saveGh() {
@@ -341,7 +495,7 @@ async function send() {
   const input = document.getElementById('msg');
   const m = input.value.trim();
   if (!m && !pendingPhoto) return;
-  addMsg('user', m || '(photo)', pendingPhoto);
+  addMsg('user', escapeHtml(m || '(photo)'), pendingPhoto);
   input.value = '';
   removePhoto();
 
@@ -363,7 +517,7 @@ async function send() {
       else endpoint = '/tasks';
 
       const r = await whosCall(endpoint);
-      if (r.status === 401) return; // whosCall already logged out
+      if (r.status === 401) return; // whosCall showed the expiry notice; session storage is retained
       if (r.ok && r.data != null) {
         const list = (endpoint === '/projects' || endpoint === '/tasks') ? L.normalizeList(r.data) : null;
         if (list) addMsg('ai','<small>🦅 WHOS '+endpoint+'</small>'+L.renderRows(list, endpoint.slice(1,-1)));
@@ -400,8 +554,10 @@ async function send() {
       addMsg('ai','<small>🦅 '+agent.toUpperCase()+'</small>'+escapeHtml(ans).replace(/\n/g,'<br>'));
     } else if (d.error) { addMsg('err','❌ '+escapeHtml(L.redact(d.error.message||'Error'))); }
     else { addMsg('err','❌ Jawab nahi aya.'); }
-  } catch(e) { addMsg('err','❌ '+e.message); }
+  } catch(e) { addMsg('err','❌ '+escapeHtml(L.redact(e.message))); }
 }
+
+void initializeSavedSession();
 </script>
 
 </body>
