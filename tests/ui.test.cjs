@@ -283,6 +283,28 @@ test('Owner kaam shows copy items; PR board is GET-only and shows CI/review', as
   await browser.close();
 });
 
+test('Live card: LIVE when public GETs succeed; UNKNOWN (not LIVE) on failure; week checklist persists', async () => {
+  const mk = ok => (route, r, u) => ok
+    ? (/health/.test(u) ? json(route, 200, { status: 'ok', commit: 'abcdef0123' }) : json(route, 200, [{ id: 1 }]))
+    : json(route, 503, {});
+  let { browser, page, calls } = await setup(mk(true));
+  await page.waitForSelector('#liveBody .pill.live');
+  assert.match(await page.textContent('#liveBody'), /Backend: LIVE/);
+  assert.ok(calls.every(c => c.startsWith('GET ')));
+  assert.ok(calls.every(c => /\/api\/v1\/(health|inventory\/public\/catalog)$/.test(c.slice(4))));
+  await page.click('button:has-text("Marketing Week")');
+  assert.strictEqual(await page.locator('.week-row').count(), 7);
+  await page.locator('.week-row input').first().check();
+  await page.reload(); await page.click('button:has-text("Marketing Week")');
+  assert.ok(await page.locator('.week-row input').first().isChecked());
+  const keys = await page.evaluate(() => Object.keys(localStorage));
+  assert.ok(keys.every(k => k.startsWith('shaheen_week_')));
+  await browser.close();
+  ({ browser, page } = await setup(mk(false)));
+  await page.waitForSelector('#liveBody .pill.unknown');
+  const t = await page.textContent('#liveBody');
+  assert.match(t, /Backend: UNKNOWN/); assert.doesNotMatch(t, /LIVE/);
+  assert.ok(await page.isDisabled('#publishBtn'));
 test('PR board escapes external number and short SHA before HTML insertion', async () => {
   const number = '<img data-xss="number" src=x onerror="window.__xss=1">';
   const shortSha = '<img x>';

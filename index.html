@@ -51,6 +51,13 @@ body { background:#0a0a0a; color:#e0e0e0; font-family:Arial,sans-serif; margin:0
 .quick-actions button { min-height:44px; }
 .quick-actions button.publish:disabled { background:#222; color:#777; border-color:#333; cursor:not-allowed; }
 .copy-btn { min-height:44px; padding:8px 14px; border-radius:8px; border:none; background:#f80; color:#000; font-weight:bold; margin:4px 0 10px; }
+.card { background:#1a1a1a; padding:10px; border-radius:10px; margin-bottom:8px; border:1px solid #2a2a4a; }
+.card h3 { margin:0 0 6px; font-size:14px; color:#ffd700; }
+.card button { min-height:44px; padding:8px 14px; border-radius:8px; border:none; background:#f80; color:#000; font-weight:bold; }
+.pill { display:inline-block; padding:4px 10px; border-radius:6px; font-size:12px; font-weight:bold; margin:2px 4px 2px 0; }
+.pill.live { background:#0a3d0a; color:#b8ffb8; } .pill.unknown { background:#3d3d0a; color:#ffff88; }
+.week-row { display:flex; align-items:center; gap:10px; min-height:48px; border-bottom:1px solid #2a2a2a; }
+.week-row input { width:26px; height:26px; }
 </style>
 </head>
 <body>
@@ -60,6 +67,17 @@ body { background:#0a0a0a; color:#e0e0e0; font-family:Arial,sans-serif; margin:0
 <p>Ustad Jee • WHOS Connected</p>
 <span class="status status-err" id="whosStatus">⏳ WHOS check...</span>
 <button class="settings-btn" onclick="toggleSettings()">⚙️</button>
+</div>
+
+<div class="card" id="liveCard">
+<h3>📡 WHOS Live Status</h3>
+<div id="liveBody">⏳ Check ho raha hai...</div>
+<button onclick="refreshLive()">🔄 Refresh</button>
+</div>
+
+<div class="card hidden" id="weekPanel">
+<h3>📅 Marketing Week</h3>
+<div id="weekBody"></div>
 </div>
 
 <div class="settings-panel hidden" id="settingsPanel">
@@ -100,6 +118,7 @@ body { background:#0a0a0a; color:#e0e0e0; font-family:Arial,sans-serif; margin:0
 <button onclick="showPrBoard()">🔀 PR Board</button>
 <button onclick="showOwnerKaam()">📝 Owner kaam</button>
 <button onclick="showSpend()">💰 Kharcha</button>
+<button onclick="toggleWeek()">📅 Marketing Week</button>
 <button onclick="quick('Motivate karo')">🔥 Booster</button>
 <button onclick="clearChat()">🗑️</button>
 </div>
@@ -121,6 +140,7 @@ body { background:#0a0a0a; color:#e0e0e0; font-family:Arial,sans-serif; margin:0
 </div>
 
 <script src="shaheen-lib.js"></script>
+<script src="live-week.js"></script>
 <script>
 const WHOS_URL = "https://whos-backend-production.up.railway.app";
 const WHOS_API = "/api/v1";
@@ -137,6 +157,50 @@ let pendingPhoto = null;
 let stayLoggedIn = false;
 let sessionNoticeShown = false;
 const L = ShaheenLib;
+
+// ---- Live status (public GET only) ----
+let lastLive = null, lastGood = null, liveBusy = false;
+function renderLive(loading) {
+  const el = document.getElementById('liveBody');
+  if (loading) { el.textContent = '⏳ Check ho raha hai...'; return; }
+  const st = LiveWeek.cardState(lastLive, lastGood, Date.now());
+  const pill = (name, v, part) => '<span class="pill ' + (v === 'LIVE' ? 'live' : 'unknown') + '">' + name + ': ' + v + (part && !part.ok && part.detail ? ' (' + L.escapeHtml(part.detail) + ')' : '') + '</span>';
+  let h = pill('Backend', st.health, lastLive && lastLive.health) + pill('Catalog', st.catalog, lastLive && lastLive.catalog);
+  if (lastLive && lastLive.catalog.ok) h += '<br>📦 Public items: <b>' + lastLive.catalog.count + '</b>';
+  if (lastLive && lastLive.health.ok && lastLive.health.commit) h += '<br><small>build ' + L.escapeHtml(lastLive.health.commit) + '</small>';
+  if (st.kind === 'STALE') h += '<br>⚠️ Abhi check fail; aakhri kamyab check ' + new Date(st.lastGoodAt).toLocaleTimeString() + ' (purana).';
+  if (st.kind === 'ERROR') h += '<br>❌ Status maloom nahi' + (st.lastGoodAt ? ' (aakhri kamyab ' + new Date(st.lastGoodAt).toLocaleTimeString() + ')' : '') + '.';
+  if (lastLive) h += '<br><small>Checked ' + new Date(lastLive.checkedAt).toLocaleTimeString() + '</small>';
+  el.innerHTML = h;
+}
+async function refreshLive() {
+  if (liveBusy) return; liveBusy = true; renderLive(true);
+  try {
+    lastLive = await LiveWeek.checkLive(fetch, Date.now());
+    if (lastLive.health.ok && lastLive.catalog.ok) lastGood = lastLive;
+  } finally { liveBusy = false; renderLive(false); }
+}
+
+// ---- Marketing Week checklist (localStorage only; non-secret) ----
+function toggleWeek() {
+  const p = document.getElementById('weekPanel');
+  p.classList.toggle('hidden');
+  if (!p.classList.contains('hidden')) renderWeek();
+}
+function renderWeek() {
+  const key = LiveWeek.weekKey(new Date());
+  let store = null; try { store = window.localStorage; } catch (e) {}
+  const checks = store ? LiveWeek.loadChecks(store, key) : {};
+  const body = document.getElementById('weekBody');
+  body.textContent = '';
+  LiveWeek.MARKETING_WEEK.forEach(it => {
+    const row = document.createElement('label'); row.className = 'week-row';
+    const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = !!checks[it.day];
+    cb.onchange = () => { checks[it.day] = cb.checked; if (store) LiveWeek.saveChecks(store, key, checks); };
+    const tx = document.createElement('span'); tx.textContent = it.day + ' — ' + it.task;
+    row.appendChild(cb); row.appendChild(tx); body.appendChild(row);
+  });
+}
 
 function toggleSettings() {
   document.getElementById('settingsPanel').classList.toggle('hidden');
@@ -557,6 +621,7 @@ async function send() {
   } catch(e) { addMsg('err','❌ '+escapeHtml(L.redact(e.message))); }
 }
 
+refreshLive();
 void initializeSavedSession();
 </script>
 
