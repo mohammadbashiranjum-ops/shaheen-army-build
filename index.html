@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="theme-color" content="#111">
+<meta name="referrer" content="no-referrer">
 <title>SHAHEEN 100 ARMY</title>
 <style>
 * { box-sizing: border-box; }
@@ -21,6 +22,8 @@ body { background:#0a0a0a; color:#e0e0e0; font-family:Arial,sans-serif; margin:0
 .settings-panel h3 { margin:0 0 8px 0; font-size:14px; color:#ffd700; }
 .box { background:#0f0f0f; padding:8px; border-radius:8px; margin-bottom:6px; border:1px solid #2a2a2a; display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
 .box input { flex:1; padding:10px; border-radius:8px; border:1px solid #333; background:#000; color:#fff; font-size:14px; min-width:100px; }
+.box input[type="checkbox"] { flex:0 0 18px; width:18px; height:18px; min-width:18px; padding:0; accent-color:#0a8; }
+.box label.stay-option { display:flex; align-items:center; gap:8px; width:100%; color:#ccc; font-size:12px; cursor:pointer; }
 .box button { padding:10px 16px; border-radius:8px; border:none; background:#f80; color:#000; font-weight:bold; font-size:14px; }
 .box button.green { background:#0a8; color:#fff; }
 .box button.red { background:#c33; color:#fff; }
@@ -53,6 +56,9 @@ body { background:#0a0a0a; color:#e0e0e0; font-family:Arial,sans-serif; margin:0
 .photo-preview img { max-width:200px; border-radius:8px; }
 .photo-preview button { background:#c33; color:#fff; border:none; padding:4px 10px; border-radius:6px; margin-top:4px; font-size:12px; }
 .hidden { display:none; }
+.quick-actions button { min-height:44px; }
+.quick-actions button.publish:disabled { background:#222; color:#777; border-color:#333; cursor:not-allowed; }
+.copy-btn { min-height:44px; padding:8px 14px; border-radius:8px; border:none; background:#f80; color:#000; font-weight:bold; margin:4px 0 10px; }
 </style>
 </head>
 <body>
@@ -67,9 +73,13 @@ body { background:#0a0a0a; color:#e0e0e0; font-family:Arial,sans-serif; margin:0
 <div class="settings-panel hidden" id="settingsPanel">
 <h3>⚙️ Settings</h3>
 
+<div class="box stay-option-box">
+<label class="stay-option" for="whosStayLoggedIn"><input id="whosStayLoggedIn" type="checkbox" onchange="setStayLoggedIn(this)">Stay logged in on this trusted device (localStorage token is readable by this site's scripts)</label>
+</div>
+
 <div class="box" id="whosLoginBox">
-<input id="whosEmail" type="text" placeholder="WHOS Email or Username" value="mohammadbashiranjum@gmail.com">
-<input id="whosPass" type="password" placeholder="WHOS Password">
+<input id="whosEmail" type="text" placeholder="WHOS Email or Username" autocomplete="username">
+<input id="whosPass" type="password" placeholder="WHOS Password" autocomplete="off">
 <button onclick="whosLogin()" class="green">Login</button>
 </div>
 
@@ -79,8 +89,13 @@ body { background:#0a0a0a; color:#e0e0e0; font-family:Arial,sans-serif; margin:0
 </div>
 
 <div class="box">
-<input id="apikey" type="password" placeholder="Groq API Key...">
+<input id="apikey" type="password" placeholder="Groq API Key (sirf memory mein)..." autocomplete="off">
 <button onclick="saveKey()">SET</button>
+</div>
+
+<div class="box">
+<input id="ghtoken" type="password" placeholder="GitHub read-only token (optional, sirf memory mein)" autocomplete="off">
+<button onclick="saveGh()">SET</button>
 </div>
 </div>
 
@@ -90,7 +105,10 @@ body { background:#0a0a0a; color:#e0e0e0; font-family:Arial,sans-serif; margin:0
 <button onclick="quick('Projects dikhao')">📁 Projects</button>
 <button onclick="quick('Tasks dikhao')">✅ Tasks</button>
 <button onclick="togglePriorityPanel()">🎯 Priority</button>
-<button onclick="publishAll()" class="publish">🚀 Publish All</button>
+<button id="publishBtn" class="publish" disabled title="Backend PR #816 merge hone tak band">🚀 Publish All (band)</button>
+<button onclick="showPrBoard()">🔀 PR Board</button>
+<button onclick="showOwnerKaam()">📝 Owner kaam</button>
+<button onclick="showSpend()">💰 Kharcha</button>
 <button onclick="quick('Motivate karo')">🔥 Booster</button>
 <button onclick="clearChat()">🗑️</button>
 </div>
@@ -120,23 +138,90 @@ body { background:#0a0a0a; color:#e0e0e0; font-family:Arial,sans-serif; margin:0
 </div>
 
 <script src="./publish-queue.js"></script>
+<script src="shaheen-lib.js"></script>
 <script>
 const WHOS_URL = "https://whos-backend-production.up.railway.app";
 const WHOS_API = "/api/v1";
+const WHOS_TOKEN_STORAGE_KEY = 'shaheen_army_whos_access_token_v1';
+const WHOS_STAY_LOGGED_IN_KEY = 'shaheen_army_stay_logged_in_v1';
 
-let whosToken = localStorage.getItem('whos_token') || "";
-let whosEmailSaved = localStorage.getItem('whos_email') || "mohammadbashiranjum@gmail.com";
-let key = localStorage.getItem('groq_key') || "";
+// WHOS access token is in memory plus the selected Web Storage area; passwords and optional API keys stay memory-only.
+let whosToken = "";
+let whosEmailSaved = "";
+let key = "";
+let ghToken = "";
+let expiryTimer = null;
 let pendingPhoto = null;
-
-// Auto-fill email if saved
-document.getElementById('whosEmail').value = whosEmailSaved;
-
-if (whosToken) showLoggedIn();
-if (key) document.getElementById('apikey').value = '****SAVED****';
+let stayLoggedIn = false;
+let sessionNoticeShown = false;
+const L = ShaheenLib;
 
 function toggleSettings() {
   document.getElementById('settingsPanel').classList.toggle('hidden');
+}
+
+function readStoredWhosToken() {
+  try {
+    return (stayLoggedIn ? localStorage : sessionStorage).getItem(WHOS_TOKEN_STORAGE_KEY) || '';
+  } catch (e) {
+    return '';
+  }
+}
+
+function persistWhosToken(token) {
+  try {
+    const selectedStorage = stayLoggedIn ? localStorage : sessionStorage;
+    const otherStorage = stayLoggedIn ? sessionStorage : localStorage;
+    if (stayLoggedIn) localStorage.setItem(WHOS_STAY_LOGGED_IN_KEY, '1');
+    else localStorage.removeItem(WHOS_STAY_LOGGED_IN_KEY);
+    selectedStorage.setItem(WHOS_TOKEN_STORAGE_KEY, token);
+    otherStorage.removeItem(WHOS_TOKEN_STORAGE_KEY);
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+function clearStoredWhosToken() {
+  try { localStorage.removeItem(WHOS_TOKEN_STORAGE_KEY); } catch (e) {}
+  try { sessionStorage.removeItem(WHOS_TOKEN_STORAGE_KEY); } catch (e) {}
+}
+
+function initializeSessionPreference() {
+  try {
+    stayLoggedIn = localStorage.getItem(WHOS_STAY_LOGGED_IN_KEY) === '1';
+  } catch (e) {
+    stayLoggedIn = false;
+  }
+  const checkbox = document.getElementById('whosStayLoggedIn');
+  if (checkbox) checkbox.checked = stayLoggedIn;
+}
+
+function setStayLoggedIn(checkbox) {
+  const previous = stayLoggedIn;
+  const next = checkbox.checked;
+  try {
+    const sourceStorage = previous ? localStorage : sessionStorage;
+    const targetStorage = next ? localStorage : sessionStorage;
+    if (whosToken) targetStorage.setItem(WHOS_TOKEN_STORAGE_KEY, whosToken);
+    if (next) localStorage.setItem(WHOS_STAY_LOGGED_IN_KEY, '1');
+    else localStorage.removeItem(WHOS_STAY_LOGGED_IN_KEY);
+    if (whosToken && previous !== next) sourceStorage.removeItem(WHOS_TOKEN_STORAGE_KEY);
+    stayLoggedIn = next;
+    addMsg('sys', next ? 'Stay logged in enabled on this device.' : 'Stay logged in disabled; the token is limited to this tab session.');
+  } catch (e) {
+    if (whosToken && previous !== next) {
+      try { (previous ? localStorage : sessionStorage).setItem(WHOS_TOKEN_STORAGE_KEY, whosToken); } catch (restoreError) {}
+      try { (next ? localStorage : sessionStorage).removeItem(WHOS_TOKEN_STORAGE_KEY); } catch (removeError) {}
+    }
+    try {
+      if (previous) localStorage.setItem(WHOS_STAY_LOGGED_IN_KEY, '1');
+      else localStorage.removeItem(WHOS_STAY_LOGGED_IN_KEY);
+    } catch (restorePreferenceError) {}
+    stayLoggedIn = previous;
+    checkbox.checked = previous;
+    addMsg('err', 'Browser session storage could not be changed; the previous mode remains active.');
+  }
 }
 
 async function whosLogin() {
@@ -151,20 +236,23 @@ async function whosLogin() {
       headers: {'Content-Type':'application/json'},
       body: JSON.stringify({ identifier: email, password: pass })
     });
-    const d = await r.json();
-    if (d.accessToken || d.access_token || d.token) {
+    let d = null;
+    try { d = await r.json(); } catch (e) {}
+    if (d && (d.accessToken || d.access_token || d.token)) {
       whosToken = d.accessToken || d.access_token || d.token;
       whosEmailSaved = email;
-      localStorage.setItem('whos_token', whosToken);
-      localStorage.setItem('whos_email', email);
+      const tokenStored = persistWhosToken(whosToken);
       document.getElementById('whosPass').value = '';
       showLoggedIn();
-      addMsg('ai','✅ WHOS login successful! Ab hamesha logged in rahenge.');
+      armExpiry();
+      addMsg('ai', tokenStored
+        ? '✅ WHOS login successful! Stay logged in controls whether the token survives browser close.'
+        : '✅ WHOS login successful, but browser storage was unavailable; this session will not survive reload.');
     } else {
-      addMsg('err','❌ Login failed: ' + JSON.stringify(d));
+      addMsg('err', escapeHtml(L.describeError('Login', { status: r.status, data: d })));
     }
   } catch(e) {
-    addMsg('err','❌ Login error: ' + e.message);
+    addMsg('err','❌ Login error: ' + escapeHtml(L.redact(e.message)));
   }
 }
 
@@ -175,33 +263,116 @@ function showLoggedIn() {
   const st = document.getElementById('whosStatus');
   st.className = 'status status-ok';
   st.textContent = '✅ WHOS Logged In';
+  sessionNoticeShown = false;
+}
+
+function showSessionExpired() {
+  clearTimeout(expiryTimer);
+  expiryTimer = null;
+  document.getElementById('whosLoginBox').classList.remove('hidden');
+  document.getElementById('whosInfoBox').classList.remove('hidden');
+  document.getElementById('whosUser').textContent = whosEmailSaved || 'Saved WHOS session';
+  const st = document.getElementById('whosStatus');
+  st.className = 'status status-warn';
+  st.textContent = 'Session expired. Please log in again.';
+  if (!sessionNoticeShown) {
+    addMsg('err', 'Session expired. Please log in again.');
+    sessionNoticeShown = true;
+  }
+}
+
+function showSessionUnavailable() {
+  document.getElementById('whosLoginBox').classList.remove('hidden');
+  document.getElementById('whosInfoBox').classList.remove('hidden');
+  document.getElementById('whosUser').textContent = whosEmailSaved || 'Saved WHOS session';
+  const st = document.getElementById('whosStatus');
+  st.className = 'status status-warn';
+  st.textContent = 'Could not verify the WHOS session. Check the connection and try again.';
+  if (!sessionNoticeShown) {
+    addMsg('err', 'Could not verify the WHOS session. Check the connection and try again.');
+    sessionNoticeShown = true;
+  }
+}
+
+async function checkWhosSession(fromTimer = false, fromStartup = false) {
+  if (!whosToken) return null;
+  const token = whosToken;
+  const result = await L.request(fetch, WHOS_URL + WHOS_API + '/auth/me', token, { method: 'GET' });
+  if (whosToken !== token) return null;
+  if (result.ok) {
+    if (result.data && typeof result.data.username === 'string') whosEmailSaved = result.data.username;
+    showLoggedIn();
+    if (fromTimer) {
+      const exp = L.tokenExpiryMs(token);
+      const remaining = exp ? exp - Date.now() : 0;
+      armExpiry(remaining > 1000 ? remaining : 60000);
+    } else {
+      armExpiry();
+      if (fromStartup) addMsg('sys', 'Saved WHOS session restored and verified.');
+    }
+    return true;
+  }
+  if (result.status === 401) {
+    showSessionExpired();
+    return false;
+  }
+  showSessionUnavailable();
+  if (fromTimer || fromStartup) armExpiry(60000);
+  return null;
+}
+
+function armExpiry(delayMs) {
+  clearTimeout(expiryTimer);
+  const exp = L.tokenExpiryMs(whosToken);
+  if (!exp) return;
+  const delay = Number.isFinite(delayMs) ? Math.max(delayMs, 0) : Math.max(exp - Date.now(), 0);
+  expiryTimer = setTimeout(() => { void checkWhosSession(true); }, Math.min(delay, 2147483647));
+}
+
+async function initializeSavedSession() {
+  initializeSessionPreference();
+  const storedToken = readStoredWhosToken();
+  if (!storedToken) return;
+  whosToken = storedToken;
+  const st = document.getElementById('whosStatus');
+  st.className = 'status status-warn';
+  st.textContent = 'Checking saved WHOS session…';
+  await checkWhosSession(false, true);
 }
 
 function whosLogout() {
   if (!confirm('Logout karna chahte hain?')) return;
+  doLogout();
+}
+
+function doLogout() {
+  clearTimeout(expiryTimer);
+  const old = whosToken || readStoredWhosToken();
   whosToken = "";
-  localStorage.removeItem('whos_token');
+  whosEmailSaved = "";
+  document.getElementById('whosPass').value = '';
+  document.getElementById('whosUser').textContent = '-';
+  clearStoredWhosToken();
+  try { localStorage.removeItem(WHOS_STAY_LOGGED_IN_KEY); } catch (e) {}
+  stayLoggedIn = false;
+  const stayCheckbox = document.getElementById('whosStayLoggedIn');
+  if (stayCheckbox) stayCheckbox.checked = false;
+  sessionNoticeShown = false;
+  if (old) void L.request(fetch, WHOS_URL + WHOS_API + '/auth/logout', old, { method: 'POST' }); // revoke session, best effort
   document.getElementById('whosInfoBox').classList.add('hidden');
   document.getElementById('whosLoginBox').classList.remove('hidden');
+  document.getElementById('whosStatus').className = 'status status-err';
   document.getElementById('whosStatus').textContent = '🔓 Logged out';
   addMsg('sys','WHOS logout ho gaya.');
 }
 
 async function whosCall(path, method = "GET", body = null) {
-  if (!whosToken) return { ok:false, error:"WHOS login required" };
-  const opts = {
-    method,
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": "Bearer " + whosToken
-    }
-  };
-  if (body) opts.body = JSON.stringify(body);
-  try {
-    const r = await fetch(WHOS_URL + WHOS_API + path, opts);
-    const data = await r.json();
-    return { ok:r.ok, status:r.status, data };
-  } catch(e) { return { ok:false, error:e.message }; }
+  if (!whosToken) return { ok:false, status:0, error:"WHOS login required" };
+  const opts = { method };
+  if (body) { opts.body = JSON.stringify(body); opts.headers = { "Content-Type": "application/json" }; }
+  const r = await L.request(fetch, WHOS_URL + WHOS_API + path, whosToken, opts);
+  if (r.status === 401) showSessionExpired();
+  return r;
 }
 
 async function pilotDashboard() {
@@ -211,17 +382,17 @@ async function pilotDashboard() {
   if (r.ok && r.data) {
     const d = r.data;
     let out = '📊 <b>INVENTORY DASHBOARD</b><br><br>';
-    out += '📦 Total: <b>' + d.total + '</b> | ✅ Actionable: <b>' + d.actionable + '</b><br><br>';
+    out += '📦 Total: <b>' + escapeHtml(d.total) + '</b> | ✅ Actionable: <b>' + escapeHtml(d.actionable) + '</b><br><br>';
     for (const [status, count] of Object.entries(d.byStatus || {})) {
-      out += '• ' + status + ': <b>' + count + '</b><br>';
+      out += '• ' + escapeHtml(status) + ': <b>' + escapeHtml(count) + '</b><br>';
     }
     out += '<br><b>Top 10:</b><br>';
     (d.items || []).slice(0, 10).forEach((it, i) => {
-      out += (i+1) + '. ' + it.sku + ' — ' + it.item + '<br>';
+      out += (i+1) + '. ' + escapeHtml(it.sku) + ' — ' + escapeHtml(it.item) + '<br>';
     });
     addMsg('ai', out);
   } else {
-    addMsg('err', '❌ ' + (r.error || r.status || 'Dashboard error'));
+    addMsg('err', escapeHtml(L.describeError('Dashboard', r)));
   }
 }
 
@@ -376,6 +547,49 @@ async function publishAll() {
   } else {
     addMsg('err', '❌ Publish error: ' + escapeHtml(r.error || JSON.stringify(r.data) || r.status));
   }
+
+// Publish All is locked (L.PUBLISH_UNLOCKED=false) until backend PR #816 is merged.
+// No publish/POST code exists here on purpose.
+function publishAll() { addMsg('sys','🔒 Publish All band hai jab tak backend PR #816 merge nahi hota.'); }
+// Publish All is locked (L.PUBLISH_UNLOCKED=false) until backend PR #816 is merged.
+// No publish/POST code exists here on purpose. Later it must go: approval draft -> Owner confirm -> separate exact step.
+function publishAll() { addMsg('sys','🔒 Publish All band hai jab tak backend PR #816 merge nahi hota.'); }
+
+async function showPrBoard() {
+  addMsg('sys','🔀 PR board (read-only)...');
+  const r = await L.loadPrBoard(fetch, ghToken);
+  if (r.error) { addMsg('err', escapeHtml(r.error)); return; }
+  if (!r.prs.length) { addMsg('ai','Koi open PR nahi.'); return; }
+  addMsg('ai','<small>🦅 '+L.BACKEND_REPO+'</small>' + r.prs.map(p =>
+    '#'+escapeHtml(p.number)+' '+escapeHtml(p.title)+(p.draft?' (draft)':'')+'<br>&nbsp;&nbsp;'+escapeHtml(p.sha)+' • CI: <b>'+escapeHtml(p.ci)+'</b> • Review: <b>'+escapeHtml(p.review)+'</b>').join('<br><br>'));
+}
+
+function showOwnerKaam() {
+  const chat = document.getElementById('chat');
+  addMsg('ai','<small>📝 Owner kaam (copy karke bhej dein)</small>');
+  L.OWNER_KAAM.forEach(k => {
+    const d = chat.lastElementChild;
+    d.appendChild(document.createElement('br'));
+    const t = document.createElement('div'); t.textContent = '• ' + k.title; d.appendChild(t);
+    const b = document.createElement('button'); b.className = 'copy-btn'; b.textContent = '📋 Copy';
+    b.onclick = () => navigator.clipboard.writeText(k.text).then(() => { b.textContent = '✅ Copied'; }, () => { b.textContent = '❌ Copy nahi hua'; });
+    d.appendChild(b);
+  });
+}
+
+async function showSpend() {
+  addMsg('sys','💰 Kharcha (read-only)...');
+  const r = await L.loadSpend(fetch, ghToken, L.BACKEND_REPO.split('/')[0]);
+  if (r.error) { addMsg('err', escapeHtml(r.error)); return; }
+  addMsg('ai','GitHub Actions is mahine: <b>$'+escapeHtml(r.actionsNetUsd)+'</b> ('+escapeHtml(r.lines)+' lines)<br>Railway: API se abhi safe nahi — dashboard par dekhein.');
+}
+
+function saveGh() {
+  const k = document.getElementById('ghtoken').value.trim();
+  if (!k) { addMsg('err','❌ Token khali hai.'); return; }
+  ghToken = k; document.getElementById('ghtoken').value = '';
+  addMsg('sys','✅ GitHub token memory mein (reload par ud jayega).');
+
 }
 
 function handlePhoto(input) {
@@ -399,9 +613,9 @@ function removePhoto() {
 function saveKey() {
   const k = document.getElementById('apikey').value.trim();
   if (k && k !== '****SAVED****' && k.startsWith('gsk_')) {
-    localStorage.setItem('groq_key', k); key = k;
+    key = k;
     document.getElementById('apikey').value = '****SAVED****';
-    addMsg('sys','✅ Groq key save ho gayi!');
+    addMsg('sys','✅ Groq key memory mein hai (reload par dobara daalni hogi).');
   } else if (k === '****SAVED****') {
     addMsg('sys','Key already saved.');
   } else {
@@ -424,7 +638,7 @@ function addMsg(type, text, imgSrc) {
 }
 function clearChat() { document.getElementById('chat').innerHTML = '<div class="msg msg-sys">Cleared.</div>'; }
 function quick(text) { document.getElementById('msg').value = text; send(); }
-function escapeHtml(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function escapeHtml(s) { return L.escapeHtml(s); }
 
 const BRAINS = {
   programmer: "Senior Programmer. Clean code, debug. Short Roman Urdu+English.",
@@ -455,7 +669,7 @@ async function send() {
   const input = document.getElementById('msg');
   const m = input.value.trim();
   if (!m && !pendingPhoto) return;
-  addMsg('user', m || '(photo)', pendingPhoto);
+  addMsg('user', escapeHtml(m || '(photo)'), pendingPhoto);
   input.value = '';
   removePhoto();
 
@@ -477,18 +691,17 @@ async function send() {
       else endpoint = '/tasks';
 
       const r = await whosCall(endpoint);
-      if (r.ok && r.data) {
-        const dataStr = JSON.stringify(r.data, null, 2).slice(0, 2000);
-        addMsg('ai','<small>🦅 WHOS '+endpoint+'</small><pre>'+escapeHtml(dataStr)+'</pre>');
-      } else if (r.status === 401) {
-        addMsg('err','❌ WHOS token expire. Dobara login karein.');
-        whosLogout();
+      if (r.status === 401) return; // whosCall showed the expiry notice; session storage is retained
+      if (r.ok && r.data != null) {
+        const list = (endpoint === '/projects' || endpoint === '/tasks') ? L.normalizeList(r.data) : null;
+        if (list) addMsg('ai','<small>🦅 WHOS '+endpoint+'</small>'+L.renderRows(list, endpoint.slice(1,-1)));
+        else addMsg('ai','<small>🦅 WHOS '+endpoint+'</small><pre>'+escapeHtml(JSON.stringify(r.data, null, 2).slice(0, 2000))+'</pre>');
       } else {
-        addMsg('err','⚠️ WHOS se data nahi mila: ' + (r.error || 'unknown'));
+        addMsg('err', escapeHtml(L.describeError('WHOS ' + endpoint, r)));
       }
       return;
     } catch(e) {
-      addMsg('err','❌ WHOS error: ' + e.message);
+      addMsg('err','❌ WHOS error: ' + escapeHtml(L.redact(e.message)));
       return;
     }
   }
@@ -513,10 +726,12 @@ async function send() {
     if (d.choices && d.choices[0]) {
       const ans = d.choices[0].message.content;
       addMsg('ai','<small>🦅 '+agent.toUpperCase()+'</small>'+escapeHtml(ans).replace(/\n/g,'<br>'));
-    } else if (d.error) { addMsg('err','❌ '+(d.error.message||'Error')); }
+    } else if (d.error) { addMsg('err','❌ '+escapeHtml(L.redact(d.error.message||'Error'))); }
     else { addMsg('err','❌ Jawab nahi aya.'); }
-  } catch(e) { addMsg('err','❌ '+e.message); }
+  } catch(e) { addMsg('err','❌ '+escapeHtml(L.redact(e.message))); }
 }
+
+void initializeSavedSession();
 </script>
 
 </body>
