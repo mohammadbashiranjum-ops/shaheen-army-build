@@ -1,0 +1,83 @@
+name: PR Hawk's Eye
+
+on:
+  schedule:
+    - cron: '0 0 * * *'
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Inspect open PRs and report blockers
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const staleDays = 7;
+            const staleMs = staleDays * 24 * 60 * 60 * 1000;
+            const now = Date.now();
+
+            const { data: prs } = await github.rest.pulls.list({
+              owner, repo, state: 'open', per_page: 100, sort: 'updated', direction: 'asc'
+            });
+
+            const commentOnce = async (pr, kind, body) => {
+              const marker = `<!-- pr-hawks-eye:${kind}:${pr.number}:${pr.head.sha} -->`;
+              const { data: comments } = await github.rest.issues.listComments({
+                owner, repo, issue_number: pr.number, per_page: 100
+              });
+              if (comments.some(c => (c.body || '').includes(marker))) return;
+              await github.rest.issues.createComment({
+                owner, repo, issue_number: pr.number, body: `${marker}\n${body}`
+              });
+            };
+
+            for (const pr of prs) {
+              const ageMs = now - new Date(pr.updated_at).getTime();
+              const stale = !pr.draft && ageMs >= staleMs;
+              const { data: checks } = await github.rest.checks.listForRef({
+                owner, repo, ref: pr.head.sha, per_page: 100
+              });
+              const failing = checks.check_runs.filter(c =>
+                c.status === 'completed' && !['success', 'neutral', 'skipped'].includes(c.conclusion)
+              );
+              const pending = checks.check_runs.filter(c => c.status !== 'completed');
+
+              const { data: reviews } = await github.rest.pulls.listReviews({
+                owner, repo, pull_number: pr.number, per_page: 100
+              });
+              const latestByUser = new Map();
+              for (const review of reviews) {
+                const login = review.user?.login;
+                if (login) latestByUser.set(login, review);
+              }
+              const approved = [...latestByUser.values()].some(r =>
+                r.state === 'APPROVED' &&
+                r.user?.login !== pr.user?.login &&
+                !r.user?.login?.endsWith('[bot]')
+              );
+
+              const { data: current } = await github.rest.pulls.get({
+                owner, repo, pull_number: pr.number
+              });
+              const conflicted = current.mergeable_state === 'dirty';
+
+              if (stale) await commentOnce(pr, 'stale',
+                `Hawk's-eye: PR **#${pr.number}** has had no update for ${staleDays}+ days. Owner review required; no merge was performed.`);
+              if (failing.length) await commentOnce(pr, 'ci-fail',
+                `Hawk's-eye: CI is failing on exact head \\`${pr.head.sha.slice(0, 12)}\\`: ${failing.map(c => c.name).join(', ')}. No merge was performed.`);
+              if (!approved && !pr.draft) await commentOnce(pr, 'approval-missing',
+                `Hawk's-eye: no explicit non-Maker APPROVED review exists on exact head \\`${pr.head.sha.slice(0, 12)}\\`. ${pending.length ? 'CI is still pending. ' : ''}No merge was performed.`);
+              if (conflicted) await commentOnce(pr, 'conflict',
+                `Hawk's-eye: PR reports merge conflicts (`dirty`) against its base. No merge was performed.`);
+
+              core.info(`#${pr.number} head=${pr.head.sha} draft=${pr.draft} stale=${stale} ciFail=${failing.length} pending=${pending.length} approved=${approved} conflicted=${conflicted}`);
+            }
