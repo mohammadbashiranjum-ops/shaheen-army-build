@@ -290,6 +290,7 @@ test('Live card: LIVE when public GETs succeed; UNKNOWN (not LIVE) on failure; w
   let { browser, page, calls } = await setup(mk(true));
   await page.waitForSelector('#liveBody .pill.live');
   assert.match(await page.textContent('#liveBody'), /Backend: LIVE/);
+  assert.match(await page.textContent('#pipeBody'), /Public items: 1/);
   assert.ok(calls.every(c => c.startsWith('GET ')));
   assert.ok(calls.every(c => /\/api\/v1\/(health|inventory\/public\/catalog)$/.test(c.slice(4))));
   await page.click('button:has-text("Marketing Week")');
@@ -305,6 +306,9 @@ test('Live card: LIVE when public GETs succeed; UNKNOWN (not LIVE) on failure; w
   const t = await page.textContent('#liveBody');
   assert.match(t, /Backend: UNKNOWN/); assert.doesNotMatch(t, /LIVE/);
   assert.ok(await page.isDisabled('#publishBtn'));
+  await browser.close();
+});
+
 test('PR board escapes external number and short SHA before HTML insertion', async () => {
   const number = '<img data-xss="number" src=x onerror="window.__xss=1">';
   const shortSha = '<img x>';
