@@ -77,7 +77,7 @@ jobs:
               if (!approved && !pr.draft) await commentOnce(pr, 'approval-missing',
                 `Hawk's-eye: no explicit non-Maker APPROVED review exists on exact head \`${pr.head.sha.slice(0, 12)}\`. ${pending.length ? 'CI is still pending. ' : ''}No merge was performed.`);
               if (conflicted) await commentOnce(pr, 'conflict',
-                `Hawk's-eye: PR reports merge conflicts (`dirty`) against its base. No merge was performed.`);
+                `Hawk's-eye: PR reports merge conflicts (dirty) against its base. No merge was performed.`);
 
               core.info(`#${pr.number} head=${pr.head.sha} draft=${pr.draft} stale=${stale} ciFail=${failing.length} pending=${pending.length} approved=${approved} conflicted=${conflicted}`);
             }
