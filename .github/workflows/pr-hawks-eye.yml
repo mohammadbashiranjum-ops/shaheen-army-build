@@ -73,9 +73,9 @@ jobs:
               if (stale) await commentOnce(pr, 'stale',
                 `Hawk's-eye: PR **#${pr.number}** has had no update for ${staleDays}+ days. Owner review required; no merge was performed.`);
               if (failing.length) await commentOnce(pr, 'ci-fail',
-                `Hawk's-eye: CI is failing on exact head \\`${pr.head.sha.slice(0, 12)}\\`: ${failing.map(c => c.name).join(', ')}. No merge was performed.`);
+                `Hawk's-eye: CI is failing on exact head \`${pr.head.sha.slice(0, 12)}\`: ${failing.map(c => c.name).join(', ')}. No merge was performed.`);
               if (!approved && !pr.draft) await commentOnce(pr, 'approval-missing',
-                `Hawk's-eye: no explicit non-Maker APPROVED review exists on exact head \\`${pr.head.sha.slice(0, 12)}\\`. ${pending.length ? 'CI is still pending. ' : ''}No merge was performed.`);
+                `Hawk's-eye: no explicit non-Maker APPROVED review exists on exact head \`${pr.head.sha.slice(0, 12)}\`. ${pending.length ? 'CI is still pending. ' : ''}No merge was performed.`);
               if (conflicted) await commentOnce(pr, 'conflict',
                 `Hawk's-eye: PR reports merge conflicts (`dirty`) against its base. No merge was performed.`);
 
