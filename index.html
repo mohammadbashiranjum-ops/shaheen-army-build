@@ -51,6 +51,16 @@ body { background:#0a0a0a; color:#e0e0e0; font-family:Arial,sans-serif; margin:0
 .quick-actions button { min-height:44px; }
 .quick-actions button.publish:disabled { background:#222; color:#777; border-color:#333; cursor:not-allowed; }
 .copy-btn { min-height:44px; padding:8px 14px; border-radius:8px; border:none; background:#f80; color:#000; font-weight:bold; margin:4px 0 10px; }
+.msg-it { border-left:4px solid #444; padding:8px 10px; margin:6px 0; border-radius:6px; background:#141414; }
+.msg-it .it-head { font-size:14px; }
+.msg-it .it-meta { font-size:11px; color:#9aa; margin:2px 0; }
+.msg-it .it-msg { font-size:12px; margin:4px 0; }
+.msg-it .it-step { font-size:12px; color:#ffd700; margin-top:4px; }
+.msg-it.it-tone-passed { border-left-color:#2ecc71; }
+.msg-it.it-tone-failed { border-left-color:#e74c3c; }
+.msg-it.it-tone-blocked { border-left-color:#e67e22; }
+.msg-it.it-tone-unproven { border-left-color:#f1c40f; }
+.msg-it.it-tone-pending { border-left-color:#3498db; }
 </style>
 </head>
 <body>
@@ -98,6 +108,7 @@ body { background:#0a0a0a; color:#e0e0e0; font-family:Arial,sans-serif; margin:0
 <button onclick="quick('Tasks dikhao')">✅ Tasks</button>
 <button id="publishBtn" class="publish" disabled title="Backend PR #816 merge hone tak band">🚀 Publish All (band)</button>
 <button onclick="showPrBoard()">🔀 PR Board</button>
+<button onclick="showItWorkshop()">🛠️ IT Workshop</button>
 <button onclick="showOwnerKaam()">📝 Owner kaam</button>
 <button onclick="showSpend()">💰 Kharcha</button>
 <button onclick="quick('Motivate karo')">🔥 Booster</button>
@@ -389,6 +400,42 @@ async function showPrBoard() {
   if (!r.prs.length) { addMsg('ai','Koi open PR nahi.'); return; }
   addMsg('ai','<small>🦅 '+L.BACKEND_REPO+'</small>' + r.prs.map(p =>
     '#'+escapeHtml(p.number)+' '+escapeHtml(p.title)+(p.draft?' (draft)':'')+'<br>&nbsp;&nbsp;'+escapeHtml(p.sha)+' • CI: <b>'+escapeHtml(p.ci)+'</b> • Review: <b>'+escapeHtml(p.review)+'</b>').join('<br><br>'));
+}
+
+// IT Workshop: the customer-facing status/track surface. Reads the server's IT
+// job list (GET only) and shows each job through the lane's own success rule
+// (L.presentLane / L.customerReading). Every card carries one manual fallback
+// button; nothing here posts or mutates.
+async function showItWorkshop() {
+  if (!whosToken) { addMsg('err','❌ Pehle WHOS login karein (⚙️ Settings).'); return; }
+  addMsg('sys','🛠️ IT Workshop laa raha hoon...');
+  const r = await L.loadItJobs(fetch, whosToken, WHOS_URL);
+  if (r.error) { addMsg('err', escapeHtml(r.error)); return; }
+  const jobs = r.jobs || [];
+  const intro = '<small>🛠️ IT WORKSHOP • ' + jobs.length + ' job(s) • sirf padhne ke liye (read-only)</small>';
+  if (!jobs.length) { addMsg('ai', intro + '<br><br>Abhi koi IT job nahi.'); return; }
+  addMsg('ai', intro);
+  const chat = document.getElementById('chat');
+  const host = chat.lastElementChild;
+  jobs.slice(0, 20).forEach(j => {
+    const view = { lane: j.lane || {} };
+    const reading = L.customerReading(view);
+    const jobCode = (j.job && j.job.jobCode) || (j.job && j.job.jobId) || '—';
+    const device = (j.device && (j.device.assetTag || j.device.deviceKind)) || (j.job && j.job.deviceId) || '—';
+    const card = document.createElement('div');
+    card.className = 'msg-it it-tone-' + reading.tone;
+    card.innerHTML =
+      '<div class="it-head">' + escapeHtml(reading.icon) + ' <b>' + escapeHtml(reading.headline) + '</b></div>' +
+      '<div class="it-meta">Job ' + escapeHtml(jobCode) + ' • ' + escapeHtml(device) + '</div>' +
+      '<div class="it-msg">' + escapeHtml(reading.message) + '</div>' +
+      '<div class="it-step">👉 ' + escapeHtml(reading.manualStep.label) + ' — ' + escapeHtml(reading.manualStep.customerDetail) + '</div>';
+    const btn = document.createElement('button');
+    btn.className = 'copy-btn';
+    btn.textContent = '📋 ' + reading.manualStep.label;
+    btn.onclick = () => { document.getElementById('msg').value = reading.manualStep.action; };
+    card.appendChild(btn);
+    host.appendChild(card);
+  });
 }
 
 function showOwnerKaam() {

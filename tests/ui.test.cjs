@@ -301,3 +301,55 @@ test('PR board escapes external number and short SHA before HTML insertion', asy
   assert.ok(calls.every(c => c.startsWith('GET ')));
   await browser.close();
 });
+
+test('IT Workshop shows customer status and one manual fallback; GET-only', async () => {
+  const jobs = { data: [
+    { job: { jobCode: 'ITJ-1', deviceId: 'd1' }, device: { assetTag: 'TAG-1' }, lane: { state: 'VERIFIED_PASS', reachedStage: 'OUTCOME' } },
+    { job: { jobCode: 'ITJ-2', deviceId: 'd2' }, device: { assetTag: 'TAG-2' }, lane: { state: 'VERIFICATION_MISSING', reachedStage: 'VERIFICATION' } },
+  ] };
+  const { browser, page, calls } = await setup((route, r, u) =>
+    /auth\/login/.test(u) ? json(route, 201, { accessToken: JWT }) :
+    /it-service\/jobs/.test(u) ? json(route, 200, jobs) : json(route, 404, {}));
+  await login(page);
+  await page.click('text=IT Workshop');
+  await page.waitForSelector('text=Done and confirmed on your device');
+  const text = await page.textContent('#chat');
+  // The passed job is proven; the unverified one is not.
+  assert.match(text, /Done and confirmed on your device/);
+  assert.match(text, /Checking the result on your device/);
+  // No engine vocabulary leaked to the customer surface.
+  assert.doesNotMatch(text, /\bstation\b|\bPR\b|\bsession\b|\bpipeline\b/);
+  // One manual fallback button per job card.
+  assert.ok((await page.locator('.msg-it .copy-btn').count()) >= 2);
+  assert.ok(calls.filter(c => /it-service\/jobs/.test(c)).every(c => c.startsWith('GET ')));
+  await browser.close();
+});
+
+test('IT Workshop reports a 403 as permission nahi and never claims success', async () => {
+  const { browser, page } = await setup((route, r, u) =>
+    /auth\/login/.test(u) ? json(route, 201, { accessToken: JWT }) :
+    /it-service\/jobs/.test(u) ? json(route, 403, { message: 'Forbidden resource' }) : json(route, 404, {}));
+  await login(page);
+  await page.click('text=IT Workshop');
+  await page.waitForSelector('.msg-err:has-text("HTTP 403")');
+  const text = await page.textContent('#chat');
+  assert.match(text, /permission nahi/);
+  assert.doesNotMatch(text, /OUTCOME PROVEN/);
+  await browser.close();
+});
+
+test('IT Workshop escapes job text before HTML insertion', async () => {
+  const jobs = { data: [
+    { job: { jobCode: '<img id=jc src=x onerror="window.__xss=1">', deviceId: 'd' }, device: { assetTag: '<img id=at src=x>' }, lane: { state: 'VERIFIED_PASS', reachedStage: 'OUTCOME' } },
+  ] };
+  const { browser, page } = await setup((route, r, u) =>
+    /auth\/login/.test(u) ? json(route, 201, { accessToken: JWT }) :
+    /it-service\/jobs/.test(u) ? json(route, 200, jobs) : json(route, 404, {}));
+  await page.evaluate(() => { window.__xss = 0; });
+  await login(page);
+  await page.click('text=IT Workshop');
+  await page.waitForSelector('text=Done and confirmed on your device');
+  assert.strictEqual(await page.locator('#chat img').count(), 0);
+  assert.strictEqual(await page.evaluate(() => window.__xss), 0);
+  await browser.close();
+});

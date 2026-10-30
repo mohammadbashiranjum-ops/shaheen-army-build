@@ -38,6 +38,82 @@ test('approval draft dedupes and counts, makes no calls', () => {
   assert.strictEqual(d.itemCount, 2); assert.strictEqual(d.postCount, 4);
   assert.match(d.text, /abhi kuch publish nahi hua/);
 });
+
+// --- IT Workshop: the lane must mirror the operator success rule exactly ---
+
+test('the lane knows all eleven states and only VERIFIED_PASS is success', () => {
+  assert.strictEqual(L.IT_LANE_STATES.length, 11);
+  for (const s of L.IT_LANE_STATES) {
+    assert.strictEqual(L.isOperatorSuccess(s), s === 'VERIFIED_PASS', s + ' success must be exactly VERIFIED_PASS');
+  }
+});
+
+test('presentLane reads the server state and nothing else', () => {
+  assert.strictEqual(L.presentLane({ lane: { state: 'VERIFIED_PASS' } }).success, true);
+  for (const s of L.IT_LANE_STATES) {
+    if (s === 'VERIFIED_PASS') continue;
+    assert.strictEqual(L.presentLane({ lane: { state: s } }).success, false, s + ' must not be success');
+  }
+});
+
+test('an unknown state is treated as unproven, never success', () => {
+  const p = L.presentLane({ lane: { state: 'SOME_NEW_STATE' } });
+  assert.strictEqual(p.success, false);
+  assert.strictEqual(p.tone, 'unproven');
+});
+
+test('EXECUTION_INDETERMINATE is unproven, not failed', () => {
+  assert.strictEqual(L.presentLane({ lane: { state: 'EXECUTION_INDETERMINATE' } }).tone, 'unproven');
+});
+
+test('every state has exactly one manual step', () => {
+  for (const s of L.IT_LANE_STATES) {
+    const step = L.MANUAL_STEPS[s];
+    assert.ok(step, s + ' has no manual step');
+    assert.ok(step.label && step.customerDetail && step.action, s + ' step is incomplete');
+  }
+});
+
+test('customerReading takes success only from presentLane', () => {
+  for (const s of L.IT_LANE_STATES) {
+    const r = L.customerReading({ lane: { state: s } });
+    assert.strictEqual(r.success, L.isOperatorSuccess(s), s);
+  }
+});
+
+test('no engine vocabulary reaches the customer strings', () => {
+  const banned = /\b(PR|agent|session|station|pipeline|Files|verdict|merge)\b/i;
+  for (const s of L.IT_LANE_STATES) {
+    assert.doesNotMatch(L.CUSTOMER_HEADLINES[s], banned, 'headline ' + s);
+    assert.doesNotMatch(L.CUSTOMER_MESSAGES[s], banned, 'message ' + s);
+    assert.doesNotMatch(L.MANUAL_STEPS[s].customerDetail, banned, 'detail ' + s);
+  }
+});
+
+test('the customer report says OUTCOME PROVEN only for a real pass', () => {
+  for (const s of L.IT_LANE_STATES) {
+    const reading = L.customerReading({ lane: { state: s } });
+    const text = L.customerReportText({ jobCode: 'J1', deviceLabel: 'Phone', reading });
+    if (s === 'VERIFIED_PASS') assert.match(text, /OUTCOME PROVEN/);
+    else { assert.match(text, /NOT YET PROVEN/); assert.doesNotMatch(text, /OUTCOME PROVEN/); }
+  }
+});
+
+test('loadItJobs is GET-only and hits the IT service jobs endpoint', async () => {
+  const calls = [];
+  const fetchImpl = async (url, opts) => { calls.push(opts.method + ' ' + url); return { ok: true, status: 200, json: async () => ({ data: [{ job: { jobCode: 'X' }, lane: { state: 'INTAKE_ONLY' } }] }) }; };
+  const r = await L.loadItJobs(fetchImpl, 'tok', 'https://whos.example/');
+  assert.strictEqual(calls.length, 1);
+  assert.strictEqual(calls[0], 'GET https://whos.example/api/v1/it-service/jobs');
+  assert.strictEqual(r.jobs.length, 1);
+});
+
+test('loadItJobs reports a 403 as permission nahi with the real status', async () => {
+  const fetchImpl = async () => ({ ok: false, status: 403, json: async () => ({ message: 'Forbidden' }) });
+  const r = await L.loadItJobs(fetchImpl, 'tok', 'https://whos.example');
+  assert.match(r.error, /permission nahi/); assert.match(r.error, /HTTP 403/);
+});
+
 test('ci and review verdicts', () => {
   assert.strictEqual(L.ciState({ check_runs: [] }), 'no checks');
   assert.strictEqual(L.ciState({ check_runs: [{ status: 'completed', conclusion: 'failure' }] }), 'FAIL');
