@@ -66,6 +66,19 @@ test('EXECUTION_INDETERMINATE is unproven, not failed', () => {
   assert.strictEqual(L.presentLane({ lane: { state: 'EXECUTION_INDETERMINATE' } }).tone, 'unproven');
 });
 
+test('a prototype-key state falls through to the unknown-state path', () => {
+  for (const s of ['constructor', 'toString', '__proto__', 'hasOwnProperty']) {
+    const p = L.presentLane({ lane: { state: s } });
+    assert.strictEqual(p.success, false, s);
+    assert.strictEqual(p.tone, 'unproven', s);
+    assert.doesNotMatch(String(p.headline), /native code|function/, s);
+    const r = L.customerReading({ lane: { state: s } });
+    assert.strictEqual(r.success, false, s);
+    assert.doesNotMatch(String(r.headline), /native code|function/, s);
+    assert.ok(r.manualStep && r.manualStep.label, s);
+  }
+});
+
 test('every state has exactly one manual step', () => {
   for (const s of L.IT_LANE_STATES) {
     const step = L.MANUAL_STEPS[s];

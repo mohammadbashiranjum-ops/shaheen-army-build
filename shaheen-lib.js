@@ -210,9 +210,16 @@
     return { tone: 'unproven', headline: 'This job is in a state this screen does not recognise', nextAction: 'Treat the job as unproven and check the lane record directly.', success: false };
   }
 
+  // Own-property lookup. A state equal to a prototype key ('constructor',
+  // 'toString', '__proto__') must fall through to the unknown-state path, not
+  // resolve to an inherited value.
+  function ownLookup(map, key) {
+    return Object.prototype.hasOwnProperty.call(map, key) ? map[key] : undefined;
+  }
+
   function presentLane(view) {
     var state = view && view.lane && view.lane.state;
-    var known = LANE_PRESENTATION[state];
+    var known = ownLookup(LANE_PRESENTATION, state);
     if (!known) return unknownStatePresentation(String(state));
     return { tone: known.tone, headline: known.headline, nextAction: known.nextAction, success: isOperatorSuccess(state) };
   }
@@ -237,7 +244,7 @@
 
   var ACTION_BY_STAGE = { INTAKE: 'diagnose', AUTHORITY: 'diagnose', PROTECTION: 'backup', EXECUTION: 'diagnose', VERIFICATION: 'repair', OUTCOME: 'report' };
   function iconForStage(stage) {
-    var id = ACTION_BY_STAGE[stage];
+    var id = ownLookup(ACTION_BY_STAGE, stage);
     for (var i = 0; i < WORKSHOP_ACTIONS.length; i++) if (WORKSHOP_ACTIONS[i].id === id) return WORKSHOP_ACTIONS[i].icon;
     return '\uD83D\uDEE0\uFE0F';
   }
@@ -297,13 +304,13 @@
     return {
       icon: iconForStage(stage),
       tone: presentation.tone,
-      headline: CUSTOMER_HEADLINES[state] || presentation.headline,
-      message: CUSTOMER_MESSAGES[state] || presentation.headline,
+      headline: ownLookup(CUSTOMER_HEADLINES, state) || presentation.headline,
+      message: ownLookup(CUSTOMER_MESSAGES, state) || presentation.headline,
       success: presentation.success,
       engineNote: presentation.success
         ? 'WHOS recorded the whole job, so the report is backed by evidence, not a verbal promise.'
         : 'WHOS is tracking this job. You do not need to follow anything \u2014 the counter will tell you the next step.',
-      manualStep: MANUAL_STEPS[state] || MANUAL_STEPS.INTAKE_ONLY
+      manualStep: ownLookup(MANUAL_STEPS, state) || MANUAL_STEPS.INTAKE_ONLY
     };
   }
 
