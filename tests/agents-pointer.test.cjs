@@ -10,6 +10,8 @@ test('AGENTS.md points at OD-0015 and both V2 docs by path', () => {
   assert.match(agents, /OD-0015/);
   assert.match(agents, /docs\/WHOS_OWNER_WORKING_CRITERIA_V2\.md/);
   assert.match(agents, /docs\/WHOS_AGENT_WORKING_ORDER_V2\.md/);
+  assert.match(agents, /whos-backend` \(branch `main`\)/);
+  assert.doesNotMatch(agents, /claude\/mission-rules-upgrade/);
 });
 test('AGENTS.md keeps the exact-Owner-approval gates and no-self-PASS rule', () => {
   for (const g of ['Payment', 'secrets/access', 'migrations', 'external publish/send', 'legal commitment', 'destructive delete', 'never PASSes its own work'])
