@@ -49,12 +49,14 @@ test('standing-orders section names all seven protected gates and the Boundary p
   for (const g of ['payment', 'secrets or access', 'migration', 'external publish or send', 'legal commitment', 'permanent delete', 'any mutating action on a real device'])
     assert.ok(sec.includes(g), g);
 });
-test('OD-0017 appears only in the heading and the non-presence sentence', () => {
+test('OD-0017 and the runbook appear only in the heading and the non-presence sentence', () => {
   const heading = '## Owner standing orders — OD-0016 (2026-11-03) and OD-0017';
-  const pending = 'OD-0017 and the Command Center runbook (`docs/WHOS_CC_COMMAND_CENTER_RUNBOOK.md`) are not on whos-backend main yet; this pointer will be completed when they land.';
+  const pending = 'OD-0017 and the Command Center runbook (`docs/WHOS_CC_COMMAND_CENTER_RUNBOOK.md`) are not on whos-backend main yet (landing in whos-backend#2007); this pointer will be completed when they land.';
   const lines = agents.split('\n');
   assert.strictEqual(lines.filter((l) => l === heading).length, 1, 'heading without OD-0017 date');
   const flat = lines.filter((l) => l !== heading).join(' ').replace(/\s+/g, ' ');
   assert.strictEqual(flat.split(pending).length - 1, 1, 'pending sentence present exactly once');
-  assert.doesNotMatch(flat.replace(pending, ''), /OD-0017/);
+  const rest = flat.replace(pending, '');
+  assert.doesNotMatch(rest, /OD\s*[-‐-―]?\s*0*17\b/i, 'OD-0017 outside heading/pending sentence');
+  assert.doesNotMatch(rest, /WHOS_CC_COMMAND_CENTER_RUNBOOK/, 'runbook outside pending sentence');
 });
