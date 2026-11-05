@@ -13,3 +13,16 @@ This section lowers no existing rule. Payment, secrets/access, migrations,
 external publish/send, legal commitment and destructive delete stay gated on
 exact Owner approval. A Maker never PASSes its own work. Hosted GitHub Actions
 CI is unavailable (issue #1296); run `npm test` locally.
+
+## Owner standing orders — OD-0016 (2026-11-03) and OD-0017
+
+Canonical text lives on `whos-backend` `main`: the OD-0016 entry in
+`config/whos_owner_directives_v1.json` and the section "Owner standing orders (2026-11-03)" in
+`docs/WHOS_AGENT_WORKING_ORDER_V2.md`. OD-0017 and the Command Center runbook
+(`docs/WHOS_CC_COMMAND_CENTER_RUNBOOK.md`) are not on whos-backend main yet (landing in
+whos-backend#2007); this pointer will be completed when they land. There is deliberately no copy
+here, because a second copy is a second source of truth. This pointer grants no authority and
+lowers no rule. Payment, secrets or access, migration, external publish or send, legal
+commitment, permanent delete and any mutating action on a real device stay exact-Owner-approval
+gated; the full list is the Boundary paragraph in `docs/WHOS_AGENT_WORKING_ORDER_V2.md`. A Maker
+never judges its own artifact.
