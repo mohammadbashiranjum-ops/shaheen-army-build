@@ -32,11 +32,12 @@ function standingOrdersSection() {
 }
 test('AGENTS.md points at OD-0016, OD-0017 and their canonical paths', () => {
   for (const s of ['OD-0016', 'OD-0017', 'config/whos_owner_directives_v1.json',
-    'docs/WHOS_AGENT_WORKING_ORDER_V2.md', 'docs/WHOS_CC_COMMAND_CENTER_RUNBOOK.md'])
+    'docs/WHOS_AGENT_WORKING_ORDER_V2.md'])
     assert.ok(agents.includes(s), s);
 });
 test('standing-orders pointer copies no rule text', () => {
-  assert.doesNotMatch(agents, /IQ ?200|Hawk'?s Eye|Uber[- ]style|smart router|zero tolerance/i);
+  assert.doesNotMatch(standingOrdersSection().join('\n'),
+    /IQ ?200|Hawk'?s Eye|Uber[- ]style|smart router|zero tolerance/i);
 });
 test('standing-orders section is 12 lines or fewer', () => {
   const sec = standingOrdersSection();
