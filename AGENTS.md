@@ -22,5 +22,6 @@ Canonical text lives on `whos-backend` `main`: the OD-0016 entry in
 `docs/WHOS_CC_COMMAND_CENTER_RUNBOOK.md` are not on `main` yet (pending on whos-backend).
 There is deliberately no copy here, because a second copy is a second source of truth. This
 pointer grants no authority and lowers no rule. Payment, secrets or access, migration, external
-publish or send, legal commitment and permanent delete stay exact-Owner-approval gated. A Maker
-never judges its own artifact.
+publish or send, legal commitment, permanent delete and any mutating action on a real device stay
+exact-Owner-approval gated; the full list is the Boundary paragraph in
+`docs/WHOS_AGENT_WORKING_ORDER_V2.md`. A Maker never judges its own artifact.

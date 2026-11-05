@@ -43,8 +43,9 @@ test('standing-orders section is 12 lines or fewer', () => {
   const sec = standingOrdersSection();
   assert.ok(sec.length <= 12, `section is ${sec.length} lines`);
 });
-test('standing-orders section names all six protected gates', () => {
+test('standing-orders section names all seven protected gates and the Boundary paragraph', () => {
   const sec = standingOrdersSection().join(' ').replace(/\s+/g, ' ').toLowerCase();
-  for (const g of ['payment', 'secrets or access', 'migration', 'external publish or send', 'legal commitment', 'permanent delete'])
+  assert.ok(sec.includes('boundary paragraph'), 'boundary paragraph pointer');
+  for (const g of ['payment', 'secrets or access', 'migration', 'external publish or send', 'legal commitment', 'permanent delete', 'any mutating action on a real device'])
     assert.ok(sec.includes(g), g);
 });
