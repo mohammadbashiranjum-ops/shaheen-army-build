@@ -111,7 +111,7 @@ body { background:#0a0a0a; color:#e0e0e0; font-family:Arial,sans-serif; margin:0
 <button onclick="quick('Inventory ka data dikhao')">📦 Inventory</button>
 <button onclick="quick('Projects dikhao')">📁 Projects</button>
 <button onclick="quick('Tasks dikhao')">✅ Tasks</button>
-<button id="publishBtn" class="publish" disabled title="Backend PR #816 merge hone tak band">🚀 Publish All (band)</button>
+<button id="publishBtn" class="publish" onclick="publishAll()" title="WHOS ka Owner-approval page kholta hai; yahan se kuch publish nahi hota">🚀 Publish (WHOS page)</button>
 <button onclick="showPrBoard()">🔀 PR Board</button>
 <button onclick="showItWorkshop()">🛠️ IT Workshop</button>
 <button onclick="showOwnerKaam()">📝 Owner kaam</button>
@@ -399,9 +399,14 @@ async function pilotDashboard() {
   }
 }
 
-// Publish All is locked (L.PUBLISH_UNLOCKED=false) until backend PR #816 is merged.
-// No publish/POST code exists here on purpose. Later it must go: approval draft -> Owner confirm -> separate exact step.
-function publishAll() { addMsg('sys','🔒 Publish All band hai jab tak backend PR #816 merge nahi hota.'); }
+// Publishing is NOT done from this PWA (L.PUBLISH_UNLOCKED stays false; no publish/POST code here on purpose).
+// Backend PR #816 (duplicate-post guard) is long merged. The Owner's own authenticated tap lives on the WHOS
+// frontend page /inventory-listing-approval; this button only opens that page in a new tab.
+var WHOS_PUBLISH_PAGE = 'https://whos-frontend-production.up.railway.app/inventory-listing-approval';
+function publishAll() {
+  addMsg('sys','🚀 WHOS ka Listing approval page khul raha hai. Wahan apne Owner login se "Publish…" dabayen, channels chunein, phir "Confirm publish". Is PWA se kuch publish nahi hota.');
+  window.open(WHOS_PUBLISH_PAGE, '_blank', 'noopener,noreferrer');
+}
 
 async function showPrBoard() {
   addMsg('sys','🔀 PR board (read-only)...');
