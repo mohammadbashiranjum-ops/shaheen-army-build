@@ -56,11 +56,17 @@ async function login(page, { stayLoggedIn = false } = {}) {
   await page.waitForSelector('#whosInfoBox:not(.hidden)');
 }
 
-test('Publish All is disabled and fires nothing', async () => {
+test('Publish button only opens the WHOS page and fires no publish call', async () => {
   const { browser, page, calls } = await setup(route => json(route, 200, {}));
-  assert.ok(await page.isDisabled('#publishBtn'));
-  await page.click('#publishBtn', { force: true }).catch(() => {});
-  assert.ok(!calls.some(c => /meta-publishing/.test(c)));
+  assert.ok(!(await page.isDisabled('#publishBtn')));
+  const href = await page.evaluate(() => WHOS_PUBLISH_PAGE);
+  assert.match(href, /^https:\/\/whos-frontend-production\.up\.railway\.app\/inventory-listing-approval$/);
+  await page.evaluate(() => { window.__opened = []; window.open = (...a) => { window.__opened.push(a); return null; }; });
+  await page.click('#publishBtn');
+  const opened = await page.evaluate(() => window.__opened);
+  assert.strictEqual(opened.length, 1);
+  assert.strictEqual(opened[0][0], href);
+  assert.ok(!calls.some(c => /meta-publishing|publish-meta|meta-publish-approvals/.test(c)));
   await browser.close();
 });
 
